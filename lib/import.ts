@@ -2,6 +2,7 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 
 export interface ImportedVolunteer {
+  sourceRow: number;
   name: string;
   phone: string;
   role: string;
@@ -15,23 +16,23 @@ function keyOf(value: string): string {
 
 function pick(row: Record<string, unknown>, keys: string[]): string {
   const entries = Object.entries(row);
-  const match = entries.find(([k]) => keys.includes(keyOf(k)));
+  const match = entries.find(([key]) => keys.includes(keyOf(key)));
   return match ? String(match[1] ?? "").trim() : "";
 }
 
 function normalizeRows(rows: Record<string, unknown>[]): ImportedVolunteer[] {
   return rows
-    .map((row) => {
+    .map((row, index) => {
       const name = pick(row, ["name", "fullname", "volunteername"]);
-      const phone = pick(row, ["phone", "phonenumber", "mobile", "mobilenumber", "contact", "contactnumber"]);
+      const phone = pick(row, ["phone", "phonenumber", "mobile", "mobilenumber", "mobileno", "contact", "contactnumber", "contactno", "handphone", "handphoneno", "hp", "hpno"]);
       const role = pick(row, ["role", "volunteerrole", "assignment", "station"]);
       const shift = pick(row, ["shift", "shiftname", "timeslot", "slot"]);
       const fields = Object.fromEntries(
-        Object.entries(row).map(([k, v]) => [keyOf(k), String(v ?? "").trim()]),
+        Object.entries(row).map(([key, value]) => [keyOf(key), String(value ?? "").trim()]),
       );
-      return { name, phone, role, shift, fields };
+      return { sourceRow: index + 2, name, phone, role, shift, fields };
     })
-    .filter((row) => row.name || row.phone);
+    .filter((row) => row.name || row.phone || row.shift);
 }
 
 export async function parseRoster(file: File): Promise<ImportedVolunteer[]> {
