@@ -1,5 +1,7 @@
 export type EventStatus = "active" | "archived";
 export type SendStatus = "pending" | "opened" | "sent" | "skipped" | "error";
+export type CampaignAudienceType = "event" | "shift";
+export type CampaignStatus = "active" | "closed";
 
 export interface EventRecord {
   id: string;
@@ -11,13 +13,36 @@ export interface EventRecord {
   createdAt: string;
 }
 
+export interface ShiftRecord {
+  id: string;
+  eventId: string;
+  name: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  reportingTime: string;
+  venue: string;
+  notes: string;
+  createdAt: string;
+}
+
 export interface VolunteerRecord {
   id: string;
   eventId: string;
   name: string;
   phone: string;
+  /** Legacy fallback. New roles belong to assignments. */
   role: string;
   fields: Record<string, string>;
+  createdAt: string;
+}
+
+export interface AssignmentRecord {
+  id: string;
+  eventId: string;
+  shiftId: string;
+  volunteerId: string;
+  role: string;
   createdAt: string;
 }
 
@@ -26,6 +51,10 @@ export interface CampaignRecord {
   eventId: string;
   name: string;
   template: string;
+  audienceType: CampaignAudienceType;
+  shiftId?: string;
+  status: CampaignStatus;
+  recipientIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -42,10 +71,28 @@ export interface SendRecord {
 }
 
 export interface BackupPayload {
+  version: 2;
+  exportedAt: string;
+  events: EventRecord[];
+  shifts: ShiftRecord[];
+  volunteers: VolunteerRecord[];
+  assignments: AssignmentRecord[];
+  campaigns: CampaignRecord[];
+  sendRecords: SendRecord[];
+}
+
+export interface LegacyBackupPayload {
   version: 1;
   exportedAt: string;
   events: EventRecord[];
   volunteers: VolunteerRecord[];
-  campaigns: CampaignRecord[];
+  campaigns: Array<{
+    id: string;
+    eventId: string;
+    name: string;
+    template: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
   sendRecords: SendRecord[];
 }

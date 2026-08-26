@@ -1,9 +1,9 @@
-import type { EventRecord, VolunteerRecord } from "./types";
+import type { AssignmentRecord, EventRecord, ShiftRecord, VolunteerRecord } from "./types";
 
 export const DEFAULT_TEMPLATE = `Hi {{first_name}}, thank you for volunteering for *{{event_name}}*.
 
 📅 {{date}}
-⏰ Reporting time: {{time}}
+⏰ Reporting time: {{reporting_time}}
 📍 {{venue}}
 {{role_line}}
 Please reply to this message if you have any questions.`;
@@ -12,31 +12,46 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || name;
 }
 
-/**
- * Repairs templates saved by early builds that could contain replacement
- * characters for the three default emojis and literal trailing backslashes
- * before line breaks. This keeps existing browser-local campaigns usable.
- */
 export function sanitizeTemplate(template: string): string {
   return template
     .replace(/\\(?=\r?\n)/g, "")
-    .replace(/^\uFFFD\s*(?={{\s*date\s*}})/gm, "📅 ")
+    .replace(/^\uFFFD\s*(?={{\s*(date|shift_date)\s*}})/gm, "📅 ")
     .replace(/^\uFFFD\s*(?=Reporting time:)/gm, "⏰ ")
-    .replace(/^\uFFFD\s*(?={{\s*venue\s*}})/gm, "📍 ")
+    .replace(/^\uFFFD\s*(?={{\s*(venue|shift_venue)\s*}})/gm, "📍 ")
     .replace(/\r\n/g, "\n");
 }
 
-export function renderMessage(template: string, event: EventRecord, volunteer: VolunteerRecord): string {
+export function renderMessage(
+  template: string,
+  event: EventRecord,
+  volunteer: VolunteerRecord,
+  shift?: ShiftRecord,
+  assignment?: AssignmentRecord,
+): string {
+  const effectiveDate = shift?.date || event.date;
+  const effectiveVenue = shift?.venue || event.venue;
+  const effectiveReportingTime = shift?.reportingTime || shift?.startTime || event.time;
+  const effectiveRole = assignment?.role || volunteer.role || "";
+
   const values: Record<string, string> = {
     name: volunteer.name,
     first_name: firstName(volunteer.name),
     phone: volunteer.phone,
-    role: volunteer.role,
-    role_line: volunteer.role ? `\nYour assigned role is *${volunteer.role}*.\n` : "",
+    role: effectiveRole,
+    role_line: effectiveRole ? `\nYour assigned role is *${effectiveRole}*.\n` : "",
     event_name: event.name,
-    date: event.date,
-    time: event.time,
-    venue: event.venue,
+    event_date: event.date,
+    event_venue: event.venue,
+    date: effectiveDate,
+    time: effectiveReportingTime,
+    venue: effectiveVenue,
+    shift_name: shift?.name || "",
+    shift_date: shift?.date || event.date,
+    shift_start: shift?.startTime || "",
+    shift_end: shift?.endTime || "",
+    reporting_time: effectiveReportingTime,
+    shift_venue: effectiveVenue,
+    shift_notes: shift?.notes || "",
     ...volunteer.fields,
   };
 

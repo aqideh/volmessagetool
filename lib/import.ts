@@ -5,6 +5,7 @@ export interface ImportedVolunteer {
   name: string;
   phone: string;
   role: string;
+  shift: string;
   fields: Record<string, string>;
 }
 
@@ -24,10 +25,11 @@ function normalizeRows(rows: Record<string, unknown>[]): ImportedVolunteer[] {
       const name = pick(row, ["name", "fullname", "volunteername"]);
       const phone = pick(row, ["phone", "phonenumber", "mobile", "mobilenumber", "contact", "contactnumber"]);
       const role = pick(row, ["role", "volunteerrole", "assignment", "station"]);
+      const shift = pick(row, ["shift", "shiftname", "timeslot", "slot"]);
       const fields = Object.fromEntries(
         Object.entries(row).map(([k, v]) => [keyOf(k), String(v ?? "").trim()]),
       );
-      return { name, phone, role, fields };
+      return { name, phone, role, shift, fields };
     })
     .filter((row) => row.name || row.phone);
 }
