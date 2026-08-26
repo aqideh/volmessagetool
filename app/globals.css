@@ -37,6 +37,7 @@ h3 { margin-bottom: 4px; }
 .primary { background: var(--accent); color: #fff; }
 .secondary { background: #fff; border: 1px solid var(--border); color: var(--text); }
 .whatsapp { background: #1f8f52; color: #fff; }
+.compact { padding: 7px 10px; font-size: 12px; }
 .event-item { text-align: left; border: 1px solid transparent; background: transparent; color: #fff; border-radius: 10px; padding: 10px; display: grid; gap: 3px; }
 .event-item small { color: #9ea7b1; }
 .event-item.selected { background: #222930; border-color: #36414b; }
@@ -75,10 +76,22 @@ th { color: var(--muted); font-size: 12px; }
 .status-skipped { background: #eef1f4; color: #59636e; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
 .shift-card { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.shift-card.editing { display: block; grid-column: 1 / -1; }
 .shift-card p { margin-bottom: 7px; }
+.shift-card-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.shift-edit-form { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 12px; }
+.shift-edit-form .wide-field { grid-column: 1 / -1; }
 .assignment-list { display: flex; gap: 6px; flex-wrap: wrap; }
 .assignment-chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; background: #eef1f4; padding: 5px 8px; font-size: 12px; }
-.assignment-chip button { border: 0; background: transparent; color: var(--muted); padding: 0 2px; font-size: 15px; }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.assignment-manager-row td { background: #f8fafc; padding: 0; }
+.assignment-manager { padding: 16px; display: grid; gap: 14px; border-left: 3px solid var(--accent); }
+.assignment-manager-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.assignment-manager-header p { margin-bottom: 0; margin-top: 4px; }
+.assignment-editor-list { display: grid; gap: 8px; }
+.assignment-editor-row, .add-assignment-row { display: grid; grid-template-columns: minmax(160px, .8fr) minmax(200px, 1.2fr) auto; gap: 8px; align-items: center; }
+.add-assignment-row { padding-top: 12px; border-top: 1px solid var(--border); }
+.assignment-editor-row .text-button { white-space: nowrap; }
 .campaign-layout { display: grid; grid-template-columns: minmax(280px, .75fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
 .campaign-list, .message-editor { display: grid; gap: 12px; }
 .campaign-item { width: 100%; text-align: left; border: 1px solid var(--border); border-radius: 10px; background: #fff; padding: 11px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
@@ -107,6 +120,7 @@ th { color: var(--muted); font-size: 12px; }
 @media (max-width: 1050px) {
   .shift-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shift-form input:nth-last-child(2) { grid-column: span 1; }
+  .shift-edit-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .campaign-layout { grid-template-columns: 1fr; }
 }
 
@@ -115,12 +129,15 @@ th { color: var(--muted); font-size: 12px; }
   .sidebar { position: static; }
   .event-list { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
   .inline-form, .metrics { grid-template-columns: 1fr 1fr; }
+  .assignment-editor-row, .add-assignment-row { grid-template-columns: 1fr 1fr; }
+  .assignment-editor-row .text-button, .add-assignment-row button { grid-column: 1 / -1; justify-self: start; }
 }
 
 @media (max-width: 600px) {
   .workspace, .sidebar { padding: 18px; }
-  .event-header, .split, .table-toolbar { align-items: stretch; flex-direction: column; }
-  .inline-form, .shift-form, .metrics { grid-template-columns: 1fr; }
+  .event-header, .split, .table-toolbar, .assignment-manager-header { align-items: stretch; flex-direction: column; }
+  .inline-form, .shift-form, .shift-edit-form, .metrics, .assignment-editor-row, .add-assignment-row { grid-template-columns: 1fr; }
   .queue-card { grid-template-columns: 1fr; }
   .actions select { width: 100%; }
+  .row-actions { justify-content: flex-start; }
 }
