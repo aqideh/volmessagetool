@@ -12,6 +12,20 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || name;
 }
 
+/**
+ * Repairs templates saved by early builds that could contain replacement
+ * characters for the three default emojis and literal trailing backslashes
+ * before line breaks. This keeps existing browser-local campaigns usable.
+ */
+export function sanitizeTemplate(template: string): string {
+  return template
+    .replace(/\\(?=\r?\n)/g, "")
+    .replace(/^\uFFFD\s*(?={{\s*date\s*}})/gm, "📅 ")
+    .replace(/^\uFFFD\s*(?=Reporting time:)/gm, "⏰ ")
+    .replace(/^\uFFFD\s*(?={{\s*venue\s*}})/gm, "📍 ")
+    .replace(/\r\n/g, "\n");
+}
+
 export function renderMessage(template: string, event: EventRecord, volunteer: VolunteerRecord): string {
   const values: Record<string, string> = {
     name: volunteer.name,
@@ -26,5 +40,5 @@ export function renderMessage(template: string, event: EventRecord, volunteer: V
     ...volunteer.fields,
   };
 
-  return template.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key: string) => values[key] ?? "");
+  return sanitizeTemplate(template).replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key: string) => values[key] ?? "");
 }
