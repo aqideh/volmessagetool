@@ -1,6 +1,6 @@
 export type EventStatus = "active" | "archived";
 export type SendStatus = "pending" | "opened" | "sent" | "skipped" | "error";
-export type CampaignAudienceType = "event" | "shift";
+export type CampaignAudienceType = "event" | "shift" | "multi_shift";
 export type CampaignStatus = "active" | "closed";
 
 export interface EventRecord {
