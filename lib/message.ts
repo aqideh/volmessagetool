@@ -23,6 +23,31 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] || name;
 }
 
+function formatShiftSummary(
+  volunteerId: string,
+  shifts: ShiftRecord[],
+  assignments: AssignmentRecord[],
+): string {
+  const shiftById = new Map(shifts.map((shift) => [shift.id, shift]));
+  return assignments
+    .filter((assignment) => assignment.volunteerId === volunteerId)
+    .map((assignment) => ({ assignment, shift: shiftById.get(assignment.shiftId) }))
+    .filter((item): item is { assignment: AssignmentRecord; shift: ShiftRecord } => Boolean(item.shift))
+    .sort((a, b) => `${a.shift.date}${a.shift.startTime}`.localeCompare(`${b.shift.date}${b.shift.startTime}`))
+    .map(({ assignment, shift }, index) => {
+      const lines = [
+        `${index + 1}. ${shift.name}`,
+        `📅 ${shift.date}`,
+        `⏰ Report: ${shift.reportingTime}`,
+        `🕘 ${shift.startTime}${shift.endTime ? `–${shift.endTime}` : ""}`,
+        `📍 ${shift.venue}`,
+      ];
+      if (assignment.role) lines.push(`Role: ${assignment.role}`);
+      return lines.join("\n");
+    })
+    .join("\n\n");
+}
+
 export function sanitizeTemplate(template: string): string {
   return template
     .replace(/\\(?=\r?\n)/g, "")
@@ -47,8 +72,11 @@ export function renderMessage(
   volunteer: VolunteerRecord,
   shift?: ShiftRecord,
   assignment?: AssignmentRecord,
+  allShifts: ShiftRecord[] = [],
+  allAssignments: AssignmentRecord[] = [],
 ): string {
   const role = assignment?.role ?? "";
+  const shiftSummary = formatShiftSummary(volunteer.id, allShifts, allAssignments);
 
   const values: Record<string, string> = {
     name: volunteer.name,
@@ -62,6 +90,7 @@ export function renderMessage(
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
     whatsapp_group_link: event.whatsappGroupLink ?? "",
+    shift_summary: shiftSummary,
     // Legacy aliases are fixed to event-level fields. They never inherit shift data.
     date: event.date,
     time: event.time,
