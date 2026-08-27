@@ -117,6 +117,14 @@ th { color: var(--muted); font-size: 12px; }
 .warning { background: #fff8c5; border: 1px solid #eac54f; border-radius: 10px; padding: 12px; font-size: 13px; }
 .empty-state { max-width: 520px; margin: 80px auto; text-align: center; }
 
+.event-settings-shortcut { position: fixed; right: 18px; bottom: 18px; z-index: 20; text-decoration: none; background: #101418; color: #fff; border-radius: 999px; padding: 9px 13px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 16px rgba(0,0,0,.14); }
+.settings-page { min-height: 100vh; display: grid; place-items: start center; padding: 48px 20px; }
+.settings-card { width: min(720px, 100%); background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: grid; gap: 18px; }
+.settings-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.settings-link { width: auto; text-decoration: none; white-space: nowrap; }
+.variable-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px; background: #f7f8fa; border-radius: 10px; }
+.variable-box code { background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 5px 7px; }
+
 @media (max-width: 1050px) {
   .shift-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .shift-form input:nth-last-child(2) { grid-column: span 1; }
@@ -135,9 +143,10 @@ th { color: var(--muted); font-size: 12px; }
 
 @media (max-width: 600px) {
   .workspace, .sidebar { padding: 18px; }
-  .event-header, .split, .table-toolbar, .assignment-manager-header { align-items: stretch; flex-direction: column; }
+  .event-header, .split, .table-toolbar, .assignment-manager-header, .settings-heading { align-items: stretch; flex-direction: column; }
   .inline-form, .shift-form, .shift-edit-form, .metrics, .assignment-editor-row, .add-assignment-row { grid-template-columns: 1fr; }
   .queue-card { grid-template-columns: 1fr; }
   .actions select { width: 100%; }
   .row-actions { justify-content: flex-start; }
+  .event-settings-shortcut { right: 12px; bottom: 12px; }
 }
