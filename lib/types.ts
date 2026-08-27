@@ -9,6 +9,8 @@ export interface EventRecord {
   date: string;
   time: string;
   venue: string;
+  briefingLink?: string;
+  whatsappGroupLink?: string;
   status: EventStatus;
   createdAt: string;
 }
@@ -31,7 +33,7 @@ export interface VolunteerRecord {
   eventId: string;
   name: string;
   phone: string;
-  /** Legacy fallback. New roles belong to assignments. */
+  /** Legacy field retained only for backup/data compatibility. New roles belong to assignments. */
   role: string;
   fields: Record<string, string>;
   createdAt: string;
