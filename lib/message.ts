@@ -60,6 +60,8 @@ export function renderMessage(
     event_date: event.date,
     event_time: event.time,
     event_venue: event.venue,
+    briefing_link: event.briefingLink ?? "",
+    whatsapp_group_link: event.whatsappGroupLink ?? "",
     // Legacy aliases are fixed to event-level fields. They never inherit shift data.
     date: event.date,
     time: event.time,
