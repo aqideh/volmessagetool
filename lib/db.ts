@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 import type { AssignmentRecord, CampaignRecord, EventRecord, SendRecord, ShiftRecord, VolunteerRecord } from "./types";
+import { titleCaseName } from "./name";
 
 class VolunteerMessageDB extends Dexie {
   events!: Table<EventRecord, string>;
@@ -70,6 +71,29 @@ class VolunteerMessageDB extends Dexie {
           campaign.status = campaign.status || "active";
         });
       });
+
+    this.version(3)
+      .stores({
+        events: "id,status,date,createdAt",
+        shifts: "id,eventId,date,startTime,createdAt,[eventId+name]",
+        volunteers: "id,eventId,phone,createdAt,[eventId+phone]",
+        assignments: "id,eventId,shiftId,volunteerId,createdAt,[shiftId+volunteerId]",
+        campaigns: "id,eventId,updatedAt,status,audienceType,shiftId",
+        sendRecords: "id,eventId,campaignId,volunteerId,status,[campaignId+volunteerId]",
+      })
+      .upgrade(async (tx) => {
+        await tx.table("volunteers").toCollection().modify((volunteer: VolunteerRecord) => {
+          volunteer.name = titleCaseName(volunteer.name);
+        });
+      });
+
+    this.volunteers.hook("creating", (_primaryKey, volunteer) => {
+      volunteer.name = titleCaseName(volunteer.name);
+    });
+
+    this.volunteers.hook("updating", (changes) => {
+      if (typeof changes.name === "string") changes.name = titleCaseName(changes.name);
+    });
   }
 }
 
