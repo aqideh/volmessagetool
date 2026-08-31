@@ -92,7 +92,10 @@ class VolunteerMessageDB extends Dexie {
     });
 
     this.volunteers.hook("updating", (changes) => {
-      if (typeof changes.name === "string") changes.name = titleCaseName(changes.name);
+      const volunteerChanges = changes as Partial<VolunteerRecord>;
+      if (typeof volunteerChanges.name === "string") {
+        volunteerChanges.name = titleCaseName(volunteerChanges.name);
+      }
     });
   }
 }
