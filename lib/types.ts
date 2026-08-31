@@ -55,6 +55,7 @@ export interface CampaignRecord {
   template: string;
   audienceType: CampaignAudienceType;
   shiftId?: string;
+  useFullName?: boolean;
   status: CampaignStatus;
   recipientIds?: string[];
   createdAt: string;
