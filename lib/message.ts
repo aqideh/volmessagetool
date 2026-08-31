@@ -1,6 +1,8 @@
 import type { AssignmentRecord, EventRecord, ShiftRecord, VolunteerRecord } from "./types";
 import { firstName, titleCaseName } from "./name";
 
+export const NAME_PREFERENCE_KEY = "volmessagetool-use-full-name";
+
 export const SHIFT_VARIABLES = [
   "shift_name",
   "shift_date",
@@ -19,6 +21,11 @@ export const DEFAULT_TEMPLATE = `Hi {{first_name}}, thank you for volunteering f
 ⏰ Event time: {{event_time}}
 📍 {{event_venue}}
 Please reply to this message if you have any questions.`;
+
+function useFullVolunteerName(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(NAME_PREFERENCE_KEY) === "true";
+}
 
 function formatShiftSummary(
   volunteerId: string,
@@ -71,16 +78,16 @@ export function renderMessage(
   assignment?: AssignmentRecord,
   allShifts: ShiftRecord[] = [],
   allAssignments: AssignmentRecord[] = [],
-  useFullName = false,
 ): string {
   const role = assignment?.role ?? "";
   const shiftSummary = formatShiftSummary(volunteer.id, allShifts, allAssignments);
   const cleanedName = titleCaseName(volunteer.name);
+  const greetingName = useFullVolunteerName() ? cleanedName : firstName(cleanedName);
 
   const values: Record<string, string> = {
     ...volunteer.fields,
     name: cleanedName,
-    first_name: useFullName ? cleanedName : firstName(cleanedName),
+    first_name: greetingName,
     phone: volunteer.phone,
     role,
     role_line: role ? `\nYour assigned role is *${role}*.\n` : "",
