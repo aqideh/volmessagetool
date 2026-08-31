@@ -1,4 +1,5 @@
 import type { AssignmentRecord, EventRecord, ShiftRecord, VolunteerRecord } from "./types";
+import { firstName, titleCaseName } from "./name";
 
 export const SHIFT_VARIABLES = [
   "shift_name",
@@ -18,10 +19,6 @@ export const DEFAULT_TEMPLATE = `Hi {{first_name}}, thank you for volunteering f
 ⏰ Event time: {{event_time}}
 📍 {{event_venue}}
 Please reply to this message if you have any questions.`;
-
-function firstName(name: string): string {
-  return name.trim().split(/\s+/)[0] || name;
-}
 
 function formatShiftSummary(
   volunteerId: string,
@@ -74,13 +71,16 @@ export function renderMessage(
   assignment?: AssignmentRecord,
   allShifts: ShiftRecord[] = [],
   allAssignments: AssignmentRecord[] = [],
+  useFullName = false,
 ): string {
   const role = assignment?.role ?? "";
   const shiftSummary = formatShiftSummary(volunteer.id, allShifts, allAssignments);
+  const cleanedName = titleCaseName(volunteer.name);
 
   const values: Record<string, string> = {
-    name: volunteer.name,
-    first_name: firstName(volunteer.name),
+    ...volunteer.fields,
+    name: cleanedName,
+    first_name: useFullName ? cleanedName : firstName(cleanedName),
     phone: volunteer.phone,
     role,
     role_line: role ? `\nYour assigned role is *${role}*.\n` : "",
@@ -102,7 +102,6 @@ export function renderMessage(
     reporting_time: shift?.reportingTime ?? "",
     shift_venue: shift?.venue ?? "",
     shift_notes: shift?.notes ?? "",
-    ...volunteer.fields,
   };
 
   return sanitizeTemplate(template).replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key: string) => values[key] ?? "");
