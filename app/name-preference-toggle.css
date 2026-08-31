@@ -1,0 +1,116 @@
+.floating-tools {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.floating-tools .event-settings-shortcut {
+  position: static;
+}
+
+.name-preference-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 7px 9px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(17,24,39,.94);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(15,23,42,.20);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  user-select: none;
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s ease, background .18s ease;
+}
+
+.name-preference-toggle:hover {
+  transform: translateY(-3px);
+  background: #1b263b;
+  box-shadow: 0 14px 34px rgba(15,23,42,.25);
+}
+
+.name-preference-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggle-copy {
+  display: grid;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.toggle-copy strong {
+  font-size: 11px;
+  font-weight: 780;
+}
+
+.toggle-copy small {
+  color: #9da9bc;
+  font-size: 9px;
+  font-weight: 550;
+}
+
+.toggle-track {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #4b5567;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  transition: background .2s ease, box-shadow .2s ease;
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,.28);
+  transition: transform .22s cubic-bezier(.2,.8,.2,1);
+}
+
+.name-preference-toggle input:checked + .toggle-track {
+  background: #3972f6;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 0 0 4px rgba(57,114,246,.10);
+}
+
+.name-preference-toggle input:checked + .toggle-track .toggle-knob {
+  transform: translateX(14px);
+}
+
+.name-preference-toggle:focus-within {
+  outline: 3px solid rgba(126,161,255,.30);
+  outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+  .floating-tools {
+    right: 12px;
+    bottom: 12px;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-preference-toggle,
+  .toggle-track,
+  .toggle-knob {
+    transition-duration: .01ms !important;
+  }
+}
