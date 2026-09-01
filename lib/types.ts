@@ -2,6 +2,7 @@ export type EventStatus = "active" | "archived";
 export type SendStatus = "pending" | "opened" | "sent" | "skipped" | "error";
 export type CampaignAudienceType = "event" | "shift" | "multi_shift";
 export type CampaignStatus = "active" | "closed";
+export type RosterFlag = "yes" | "no" | "maybe" | "follow_up";
 
 export interface EventRecord {
   id: string;
@@ -33,6 +34,7 @@ export interface VolunteerRecord {
   eventId: string;
   name: string;
   phone: string;
+  rosterFlag?: RosterFlag;
   /** Legacy field retained only for backup/data compatibility. New roles belong to assignments. */
   role: string;
   fields: Record<string, string>;
@@ -72,7 +74,49 @@ export interface SendRecord {
   updatedAt: string;
 }
 
+export interface GeneralCampaignRecord {
+  id: string;
+  name: string;
+  template: string;
+  status: CampaignStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GeneralRecipientRecord {
+  id: string;
+  campaignId: string;
+  name: string;
+  phone: string;
+  fields: Record<string, string>;
+  createdAt: string;
+}
+
+export interface GeneralSendRecord {
+  id: string;
+  campaignId: string;
+  recipientId: string;
+  status: SendStatus;
+  openedAt?: string;
+  sentAt?: string;
+  updatedAt: string;
+}
+
 export interface BackupPayload {
+  version: 3;
+  exportedAt: string;
+  events: EventRecord[];
+  shifts: ShiftRecord[];
+  volunteers: VolunteerRecord[];
+  assignments: AssignmentRecord[];
+  campaigns: CampaignRecord[];
+  sendRecords: SendRecord[];
+  generalCampaigns: GeneralCampaignRecord[];
+  generalRecipients: GeneralRecipientRecord[];
+  generalSendRecords: GeneralSendRecord[];
+}
+
+export interface Version2BackupPayload {
   version: 2;
   exportedAt: string;
   events: EventRecord[];
