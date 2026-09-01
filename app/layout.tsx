@@ -16,6 +16,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <div className="floating-tools">
           <NamePreferenceToggle />
           <a className="general-messages-shortcut" href="/general">General messages</a>
+          <a className="general-messages-shortcut" href="/roster-flags">Roster flags</a>
           <a className="event-settings-shortcut" href="/event-details">Event links</a>
         </div>
         {children}
