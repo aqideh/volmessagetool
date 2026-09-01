@@ -1,4 +1,4 @@
-import type { AssignmentRecord, EventRecord, ShiftRecord, VolunteerRecord } from "./types";
+import type { AssignmentRecord, EventRecord, GeneralRecipientRecord, ShiftRecord, VolunteerRecord } from "./types";
 import { firstName, titleCaseName } from "./name";
 
 export const NAME_PREFERENCE_KEY = "volmessagetool-use-full-name";
@@ -15,11 +15,31 @@ export const SHIFT_VARIABLES = [
   "role_line",
 ] as const;
 
+export const EVENT_VARIABLES = [
+  "event_name",
+  "event_date",
+  "event_time",
+  "event_venue",
+  "briefing_link",
+  "whatsapp_group_link",
+  "date",
+  "time",
+  "venue",
+  "shift_summary",
+  ...SHIFT_VARIABLES,
+] as const;
+
 export const DEFAULT_TEMPLATE = `Hi {{first_name}}, thank you for volunteering for *{{event_name}}*.
 
 📅 {{event_date}}
 ⏰ Event time: {{event_time}}
 📍 {{event_venue}}
+Please reply to this message if you have any questions.`;
+
+export const GENERAL_DEFAULT_TEMPLATE = `Hi {{first_name}},
+
+Thank you for your continued support as a volunteer.
+
 Please reply to this message if you have any questions.`;
 
 function useFullVolunteerName(): boolean {
@@ -70,6 +90,27 @@ export function shiftVariablesUsed(template: string): string[] {
   return [...new Set(templateVariables(template).filter((variable) => shiftVariables.has(variable)))];
 }
 
+export function eventVariablesUsed(template: string): string[] {
+  const eventVariables = new Set<string>(EVENT_VARIABLES);
+  return [...new Set(templateVariables(template).filter((variable) => eventVariables.has(variable)))];
+}
+
+function personalValues(name: string, phone: string, fields: Record<string, string>) {
+  const cleanedName = titleCaseName(name);
+  const greetingName = useFullVolunteerName() ? cleanedName : firstName(cleanedName);
+  return {
+    ...fields,
+    name: cleanedName,
+    first_name: greetingName,
+    phone,
+  };
+}
+
+export function renderGeneralMessage(template: string, recipient: GeneralRecipientRecord): string {
+  const values: Record<string, string> = personalValues(recipient.name, recipient.phone, recipient.fields);
+  return sanitizeTemplate(template).replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key: string) => values[key] ?? "");
+}
+
 export function renderMessage(
   template: string,
   event: EventRecord,
@@ -81,14 +122,9 @@ export function renderMessage(
 ): string {
   const role = assignment?.role ?? "";
   const shiftSummary = formatShiftSummary(volunteer.id, allShifts, allAssignments);
-  const cleanedName = titleCaseName(volunteer.name);
-  const greetingName = useFullVolunteerName() ? cleanedName : firstName(cleanedName);
 
   const values: Record<string, string> = {
-    ...volunteer.fields,
-    name: cleanedName,
-    first_name: greetingName,
-    phone: volunteer.phone,
+    ...personalValues(volunteer.name, volunteer.phone, volunteer.fields),
     role,
     role_line: role ? `\nYour assigned role is *${role}*.\n` : "",
     event_name: event.name,
