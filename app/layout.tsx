@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./name-preference-toggle.css";
+import "./general-messaging.css";
 import NamePreferenceToggle from "./name-preference-toggle";
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <div className="floating-tools">
           <NamePreferenceToggle />
+          <a className="general-messages-shortcut" href="/general">General messages</a>
           <a className="event-settings-shortcut" href="/event-details">Event links</a>
         </div>
         {children}
