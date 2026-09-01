@@ -103,20 +103,6 @@ export interface GeneralSendRecord {
 }
 
 export interface BackupPayload {
-  version: 3;
-  exportedAt: string;
-  events: EventRecord[];
-  shifts: ShiftRecord[];
-  volunteers: VolunteerRecord[];
-  assignments: AssignmentRecord[];
-  campaigns: CampaignRecord[];
-  sendRecords: SendRecord[];
-  generalCampaigns: GeneralCampaignRecord[];
-  generalRecipients: GeneralRecipientRecord[];
-  generalSendRecords: GeneralSendRecord[];
-}
-
-export interface Version2BackupPayload {
   version: 2;
   exportedAt: string;
   events: EventRecord[];
@@ -125,6 +111,14 @@ export interface Version2BackupPayload {
   assignments: AssignmentRecord[];
   campaigns: CampaignRecord[];
   sendRecords: SendRecord[];
+}
+
+export interface GeneralBackupPayload {
+  version: 1;
+  exportedAt: string;
+  campaigns: GeneralCampaignRecord[];
+  recipients: GeneralRecipientRecord[];
+  sendRecords: GeneralSendRecord[];
 }
 
 export interface LegacyBackupPayload {
