@@ -1,5 +1,15 @@
 import Dexie, { type Table } from "dexie";
-import type { AssignmentRecord, CampaignRecord, EventRecord, SendRecord, ShiftRecord, VolunteerRecord } from "./types";
+import type {
+  AssignmentRecord,
+  CampaignRecord,
+  EventRecord,
+  GeneralCampaignRecord,
+  GeneralRecipientRecord,
+  GeneralSendRecord,
+  SendRecord,
+  ShiftRecord,
+  VolunteerRecord,
+} from "./types";
 import { titleCaseName } from "./name";
 
 class VolunteerMessageDB extends Dexie {
@@ -9,6 +19,9 @@ class VolunteerMessageDB extends Dexie {
   assignments!: Table<AssignmentRecord, string>;
   campaigns!: Table<CampaignRecord, string>;
   sendRecords!: Table<SendRecord, string>;
+  generalCampaigns!: Table<GeneralCampaignRecord, string>;
+  generalRecipients!: Table<GeneralRecipientRecord, string>;
+  generalSendRecords!: Table<GeneralSendRecord, string>;
 
   constructor() {
     super("volunteer-message-tool");
@@ -87,6 +100,18 @@ class VolunteerMessageDB extends Dexie {
         });
       });
 
+    this.version(4).stores({
+      events: "id,status,date,createdAt",
+      shifts: "id,eventId,date,startTime,createdAt,[eventId+name]",
+      volunteers: "id,eventId,phone,createdAt,[eventId+phone]",
+      assignments: "id,eventId,shiftId,volunteerId,createdAt,[shiftId+volunteerId]",
+      campaigns: "id,eventId,updatedAt,status,audienceType,shiftId",
+      sendRecords: "id,eventId,campaignId,volunteerId,status,[campaignId+volunteerId]",
+      generalCampaigns: "id,updatedAt,status,createdAt",
+      generalRecipients: "id,campaignId,phone,createdAt,[campaignId+phone]",
+      generalSendRecords: "id,campaignId,recipientId,status,[campaignId+recipientId]",
+    });
+
     this.volunteers.hook("creating", (_primaryKey, volunteer) => {
       volunteer.name = titleCaseName(volunteer.name);
     });
@@ -95,6 +120,17 @@ class VolunteerMessageDB extends Dexie {
       const volunteerChanges = changes as Partial<VolunteerRecord>;
       if (typeof volunteerChanges.name === "string") {
         volunteerChanges.name = titleCaseName(volunteerChanges.name);
+      }
+    });
+
+    this.generalRecipients.hook("creating", (_primaryKey, recipient) => {
+      recipient.name = titleCaseName(recipient.name);
+    });
+
+    this.generalRecipients.hook("updating", (changes) => {
+      const recipientChanges = changes as Partial<GeneralRecipientRecord>;
+      if (typeof recipientChanges.name === "string") {
+        recipientChanges.name = titleCaseName(recipientChanges.name);
       }
     });
   }
