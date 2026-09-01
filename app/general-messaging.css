@@ -1,0 +1,98 @@
+.general-page {
+  min-height: 100vh;
+  padding: 34px clamp(24px, 4vw, 54px) 64px;
+}
+
+.general-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.general-header > div { max-width: 760px; }
+.general-back { text-decoration: none; white-space: nowrap; }
+
+.general-layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.general-main { min-width: 0; }
+.general-recipient-form {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.recipient-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+}
+
+.recipient-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(248, 250, 253, .82);
+}
+
+.recipient-row > div { display: grid; gap: 2px; }
+.recipient-row strong { font-size: 13px; }
+.recipient-row span { font-size: 11px; color: var(--muted); }
+
+.roster-flag-select {
+  width: auto;
+  min-width: 132px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.roster-flag-select.flag-yes { background: #e9f9f0; color: #176b43; border-color: #bce9cf; }
+.roster-flag-select.flag-no { background: #fff0f1; color: #a52f3b; border-color: #f2c8cc; }
+.roster-flag-select.flag-maybe { background: #fff8e6; color: #8a6500; border-color: #efdfa8; }
+.roster-flag-select.flag-follow_up { background: #eef4ff; color: #305db7; border-color: #cad8f5; }
+
+.floating-tools .general-messages-shortcut {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.94);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 760;
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s var(--ease), box-shadow .18s ease, border-color .18s ease;
+}
+
+.floating-tools .general-messages-shortcut:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(35,49,75,.12);
+  border-color: var(--border-strong);
+}
+
+@media (max-width: 900px) {
+  .general-layout { grid-template-columns: 1fr; }
+  .general-header { flex-direction: column; }
+}
+
+@media (max-width: 640px) {
+  .general-page { padding: 22px 16px 50px; }
+  .general-recipient-form { grid-template-columns: 1fr; }
+}
