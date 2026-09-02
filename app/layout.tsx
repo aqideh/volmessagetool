@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./name-preference-toggle.css";
 import "./general-messaging.css";
+import "./sidebar-fix.css";
 import NamePreferenceToggle from "./name-preference-toggle";
 
 export const metadata: Metadata = {
