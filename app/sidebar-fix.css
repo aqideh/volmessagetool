@@ -1,0 +1,65 @@
+.app-shell {
+  grid-template-columns: 328px minmax(0, 1fr);
+}
+
+.sidebar {
+  padding-inline: 24px;
+}
+
+.sidebar .event-form,
+.sidebar .event-list,
+.sidebar .field-row,
+.sidebar input,
+.sidebar select,
+.sidebar button {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sidebar .field-row {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  gap: 8px;
+}
+
+.sidebar .field-row > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.sidebar input[type="date"],
+.sidebar input[type="time"] {
+  padding-inline: 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar .event-form > .primary {
+  width: 100%;
+  margin-top: 2px;
+}
+
+@media (max-width: 1050px) and (min-width: 901px) {
+  .app-shell {
+    grid-template-columns: 312px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar .field-row {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .sidebar .field-row {
+    grid-template-columns: 1fr;
+  }
+}
