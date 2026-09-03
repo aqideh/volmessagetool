@@ -4,7 +4,7 @@ import "./name-preference-toggle.css";
 import "./general-messaging.css";
 import "./sidebar-fix.css";
 import NamePreferenceToggle from "./name-preference-toggle";
-import SidebarEventSearch from "./sidebar-event-search";
+import EventWorkspaceTools from "./event-workspace-tools";
 
 export const metadata: Metadata = {
   title: "Volunteer Message Tool",
@@ -15,12 +15,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <SidebarEventSearch />
+        <EventWorkspaceTools />
         <div className="floating-tools">
           <NamePreferenceToggle />
           <a className="general-messages-shortcut" href="/general">General messages</a>
           <a className="general-messages-shortcut" href="/roster-flags">Roster flags</a>
-          <a className="event-settings-shortcut" href="/event-details">Event details</a>
         </div>
         {children}
       </body>
