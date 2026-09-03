@@ -71,6 +71,12 @@
   background: rgba(255,255,255,.18);
 }
 
+/* The base .event-item rule uses display:grid. Explicitly honour the live
+   search filter so non-matches disappear instead of remaining in the list. */
+.sidebar .event-list .event-item[hidden] {
+  display: none !important;
+}
+
 .event-header {
   align-items: flex-start;
 }
