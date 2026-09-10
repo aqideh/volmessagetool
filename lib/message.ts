@@ -22,6 +22,7 @@ export const EVENT_VARIABLES = [
   "event_venue",
   "briefing_link",
   "whatsapp_group_link",
+  "whatsapp_group_links",
   "date",
   "time",
   "venue",
@@ -45,6 +46,31 @@ Please reply to this message if you have any questions.`;
 function useFullVolunteerName(): boolean {
   if (typeof window === "undefined") return false;
   return window.localStorage.getItem(NAME_PREFERENCE_KEY) === "true";
+}
+
+function formatDateLabel(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat("en-SG", { day: "numeric", month: "short", year: "numeric" }).format(new Date(year, month - 1, day));
+}
+
+function whatsappGroupLinkForDate(event: EventRecord, date?: string): string {
+  if (date) {
+    const dayLink = event.whatsappGroupLinksByDate?.[date]?.trim();
+    if (dayLink) return dayLink;
+  }
+  return event.whatsappGroupLink ?? "";
+}
+
+function formatWhatsAppGroupLinks(event: EventRecord): string {
+  const entries = Object.entries(event.whatsappGroupLinksByDate ?? {})
+    .filter(([, link]) => Boolean(link.trim()))
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
+
+  if (entries.length) {
+    return entries.map(([date, link]) => `${formatDateLabel(date)}: ${link.trim()}`).join("\n");
+  }
+  return event.whatsappGroupLink ?? "";
 }
 
 function formatShiftSummary(
@@ -122,6 +148,7 @@ export function renderMessage(
 ): string {
   const role = assignment?.role ?? "";
   const shiftSummary = formatShiftSummary(volunteer.id, allShifts, allAssignments);
+  const groupDate = shift?.date || event.date;
 
   const values: Record<string, string> = {
     ...personalValues(volunteer.name, volunteer.phone, volunteer.fields),
@@ -132,7 +159,8 @@ export function renderMessage(
     event_time: event.time,
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
-    whatsapp_group_link: event.whatsappGroupLink ?? "",
+    whatsapp_group_link: whatsappGroupLinkForDate(event, groupDate),
+    whatsapp_group_links: formatWhatsAppGroupLinks(event),
     shift_summary: shiftSummary,
     // Legacy aliases are fixed to event-level fields. They never inherit shift data.
     date: event.date,
