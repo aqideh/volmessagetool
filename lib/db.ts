@@ -12,6 +12,33 @@ import type {
 } from "./types";
 import { titleCaseName } from "./name";
 
+const SEND_STATUS_RANK: Record<SendRecord["status"], number> = {
+  pending: 0,
+  opened: 1,
+  skipped: 2,
+  error: 2,
+  sent: 3,
+};
+
+function sendRecordKey(record: Pick<SendRecord, "campaignId" | "volunteerId">): string {
+  return `${record.campaignId}\u0000${record.volunteerId}`;
+}
+
+function newerSendRecord(a: SendRecord, b: SendRecord): SendRecord {
+  if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b;
+  return SEND_STATUS_RANK[a.status] >= SEND_STATUS_RANK[b.status] ? a : b;
+}
+
+function dedupeSendRecords(records: SendRecord[]): SendRecord[] {
+  const latest = new Map<string, SendRecord>();
+  for (const record of records) {
+    const key = sendRecordKey(record);
+    const current = latest.get(key);
+    latest.set(key, current ? newerSendRecord(current, record) : record);
+  }
+  return [...latest.values()];
+}
+
 class VolunteerMessageDB extends Dexie {
   events!: Table<EventRecord, string>;
   shifts!: Table<ShiftRecord, string>;
@@ -112,6 +139,30 @@ class VolunteerMessageDB extends Dexie {
       generalSendRecords: "id,campaignId,recipientId,status,[campaignId+recipientId]",
     });
 
+    // Repair any duplicate event-send rows created by stale UI state during rapid
+    // Opened -> Sent transitions. Keep the most recently updated row per campaign/person.
+    this.version(5)
+      .stores({
+        events: "id,status,date,createdAt",
+        shifts: "id,eventId,date,startTime,createdAt,[eventId+name]",
+        volunteers: "id,eventId,phone,createdAt,[eventId+phone]",
+        assignments: "id,eventId,shiftId,volunteerId,createdAt,[shiftId+volunteerId]",
+        campaigns: "id,eventId,updatedAt,status,audienceType,shiftId",
+        sendRecords: "id,eventId,campaignId,volunteerId,status,[campaignId+volunteerId]",
+        generalCampaigns: "id,updatedAt,status,createdAt",
+        generalRecipients: "id,campaignId,phone,createdAt,[campaignId+phone]",
+        generalSendRecords: "id,campaignId,recipientId,status,[campaignId+recipientId]",
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table("sendRecords");
+        const existing = (await table.toArray()) as SendRecord[];
+        const repaired = dedupeSendRecords(existing);
+        if (repaired.length !== existing.length) {
+          await table.clear();
+          if (repaired.length) await table.bulkAdd(repaired);
+        }
+      });
+
     this.volunteers.hook("creating", (_primaryKey, volunteer) => {
       volunteer.name = titleCaseName(volunteer.name);
     });
@@ -133,6 +184,44 @@ class VolunteerMessageDB extends Dexie {
         recipientChanges.name = titleCaseName(recipientChanges.name);
       }
     });
+
+    // The compound index is not unique in the legacy schema, so enforce one logical
+    // record per campaign/person in the table API itself. This also prevents two rapid
+    // status writes from creating separate rows when React state has not refreshed yet.
+    const rawSendRecords = this.table<SendRecord, string>("sendRecords");
+    const db = this;
+    this.sendRecords = new Proxy(rawSendRecords, {
+      get(target, property) {
+        if (property === "put") {
+          return async (incoming: SendRecord) => db.transaction("rw", rawSendRecords, async () => {
+            const matches = await rawSendRecords
+              .where("[campaignId+volunteerId]")
+              .equals([incoming.campaignId, incoming.volunteerId])
+              .toArray();
+
+            const current = dedupeSendRecords(matches)[0];
+            const winner = current ? newerSendRecord(current, incoming) : incoming;
+            const canonicalId = current?.id || incoming.id;
+            const canonical = { ...winner, id: canonicalId };
+
+            const duplicateIds = matches.filter((record) => record.id !== canonicalId).map((record) => record.id);
+            if (duplicateIds.length) await rawSendRecords.bulkDelete(duplicateIds);
+            return rawSendRecords.put(canonical);
+          });
+        }
+
+        if (property === "toArray") {
+          return async () => dedupeSendRecords(await rawSendRecords.toArray());
+        }
+
+        if (property === "bulkAdd") {
+          return async (records: SendRecord[]) => rawSendRecords.bulkAdd(dedupeSendRecords(records));
+        }
+
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Table<SendRecord, string>;
   }
 }
 
