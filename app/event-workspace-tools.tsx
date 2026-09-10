@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { db } from "@/lib/db";
-import type { EventRecord } from "@/lib/types";
+import type { EventRecord, ShiftRecord } from "@/lib/types";
 
-type EventDraft = Pick<EventRecord, "name" | "date" | "time" | "venue" | "briefingLink" | "whatsappGroupLink">;
+type EventDraft = Pick<EventRecord, "name" | "date" | "time" | "venue" | "briefingLink" | "whatsappGroupLink" | "whatsappGroupLinksByDate">;
 
 const emptyDraft = (): EventDraft => ({
   name: "",
@@ -14,10 +14,18 @@ const emptyDraft = (): EventDraft => ({
   venue: "",
   briefingLink: "",
   whatsappGroupLink: "",
+  whatsappGroupLinksByDate: {},
 });
+
+function formatDateLabel(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Intl.DateTimeFormat("en-SG", { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(new Date(year, month - 1, day));
+}
 
 export default function EventWorkspaceTools() {
   const [events, setEvents] = useState<EventRecord[]>([]);
+  const [shifts, setShifts] = useState<ShiftRecord[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [query, setQuery] = useState("");
   const [searchHost, setSearchHost] = useState<HTMLElement | null>(null);
@@ -31,9 +39,22 @@ export default function EventWorkspaceTools() {
     [events, selectedEventId],
   );
 
+  const eventDates = useMemo(() => {
+    if (!selectedEvent) return [];
+    const dates = shifts
+      .filter((shift) => shift.eventId === selectedEvent.id && shift.date)
+      .map((shift) => shift.date);
+    if (selectedEvent.date) dates.push(selectedEvent.date);
+    return [...new Set(dates)].sort();
+  }, [selectedEvent, shifts]);
+
   const loadEvents = useCallback(async () => {
-    const allEvents = await db.events.orderBy("date").reverse().toArray();
+    const [allEvents, allShifts] = await Promise.all([
+      db.events.orderBy("date").reverse().toArray(),
+      db.shifts.toArray(),
+    ]);
     setEvents(allEvents);
+    setShifts(allShifts);
     return allEvents;
   }, []);
 
@@ -127,9 +148,20 @@ export default function EventWorkspaceTools() {
       venue: selectedEvent.venue || "",
       briefingLink: selectedEvent.briefingLink || "",
       whatsappGroupLink: selectedEvent.whatsappGroupLink || "",
+      whatsappGroupLinksByDate: { ...(selectedEvent.whatsappGroupLinksByDate || {}) },
     });
     setNotice("");
     setEditing(true);
+  }
+
+  function updateDayGroupLink(date: string, link: string) {
+    setDraft((current) => ({
+      ...current,
+      whatsappGroupLinksByDate: {
+        ...(current.whatsappGroupLinksByDate || {}),
+        [date]: link,
+      },
+    }));
   }
 
   async function saveEvent(event: FormEvent) {
@@ -140,6 +172,12 @@ export default function EventWorkspaceTools() {
       return;
     }
 
+    const dayLinks = Object.fromEntries(
+      Object.entries(draft.whatsappGroupLinksByDate || {})
+        .map(([date, link]) => [date, link.trim()])
+        .filter(([, link]) => Boolean(link)),
+    );
+
     await db.events.update(selectedEvent.id, {
       name: draft.name.trim(),
       date: draft.date,
@@ -147,10 +185,9 @@ export default function EventWorkspaceTools() {
       venue: draft.venue.trim(),
       briefingLink: draft.briefingLink?.trim() || "",
       whatsappGroupLink: draft.whatsappGroupLink?.trim() || "",
+      whatsappGroupLinksByDate: dayLinks,
     });
 
-    // The main dashboard keeps its own in-memory event state. Reload after a successful
-    // edit so headers, message previews and ordering all reflect the updated record.
     window.location.reload();
   }
 
@@ -204,7 +241,27 @@ export default function EventWorkspaceTools() {
               <label>Time<input type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} /></label>
               <label className="wide-field">Venue<input value={draft.venue} onChange={(event) => setDraft({ ...draft, venue: event.target.value })} /></label>
               <label className="wide-field">Briefing link<input type="url" placeholder="https://..." value={draft.briefingLink || ""} onChange={(event) => setDraft({ ...draft, briefingLink: event.target.value })} /></label>
-              <label className="wide-field">WhatsApp group link<input type="url" placeholder="https://chat.whatsapp.com/..." value={draft.whatsappGroupLink || ""} onChange={(event) => setDraft({ ...draft, whatsappGroupLink: event.target.value })} /></label>
+
+              <div className="wide-field event-day-groups">
+                <div>
+                  <strong>WhatsApp groups by day</strong>
+                  <p className="muted">Dates come from this event and its shifts. Shift messages use the matching day automatically.</p>
+                </div>
+                {eventDates.map((date) => (
+                  <label className="event-day-group-row" key={date}>
+                    <span>{formatDateLabel(date)}</span>
+                    <input
+                      type="url"
+                      placeholder="https://chat.whatsapp.com/..."
+                      value={draft.whatsappGroupLinksByDate?.[date] || ""}
+                      onChange={(event) => updateDayGroupLink(date, event.target.value)}
+                    />
+                  </label>
+                ))}
+                {eventDates.length === 0 && <p className="muted">Add dated shifts to manage day-specific WhatsApp groups.</p>}
+              </div>
+
+              <label className="wide-field">Legacy/default WhatsApp group link<input type="url" placeholder="Optional fallback for older events" value={draft.whatsappGroupLink || ""} onChange={(event) => setDraft({ ...draft, whatsappGroupLink: event.target.value })} /></label>
 
               {notice && <div className="warning wide-field">{notice}</div>}
 
