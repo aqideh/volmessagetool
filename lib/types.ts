@@ -11,7 +11,10 @@ export interface EventRecord {
   time: string;
   venue: string;
   briefingLink?: string;
+  /** Legacy single event-wide group link. New multi-day events should use whatsappGroupLinksByDate. */
   whatsappGroupLink?: string;
+  /** ISO event/shift date -> WhatsApp group invite link. */
+  whatsappGroupLinksByDate?: Record<string, string>;
   status: EventStatus;
   createdAt: string;
 }
