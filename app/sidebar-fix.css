@@ -71,8 +71,6 @@
   background: rgba(255,255,255,.18);
 }
 
-/* The base .event-item rule uses display:grid. Explicitly honour the live
-   search filter so non-matches disappear instead of remaining in the list. */
 .sidebar .event-list .event-item[hidden] {
   display: none !important;
 }
@@ -101,8 +99,8 @@
 }
 
 .event-edit-dialog {
-  width: min(680px, 100%);
-  max-height: min(760px, calc(100vh - 48px));
+  width: min(720px, 100%);
+  max-height: min(800px, calc(100vh - 48px));
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 22px;
@@ -145,6 +143,38 @@
 
 .event-edit-form .wide-field {
   grid-column: 1 / -1;
+}
+
+.event-day-groups {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(248,250,252,.8);
+}
+
+.event-day-groups > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.event-day-group-row {
+  display: grid;
+  grid-template-columns: minmax(150px, .75fr) minmax(0, 1.8fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.event-day-group-row > span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.event-day-group-row input {
+  min-width: 0;
+  width: 100%;
 }
 
 .event-edit-actions {
@@ -194,6 +224,11 @@
 
   .event-edit-form .wide-field {
     grid-column: auto;
+  }
+
+  .event-day-group-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 }
 
