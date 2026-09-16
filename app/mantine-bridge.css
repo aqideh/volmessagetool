@@ -1,0 +1,117 @@
+:root {
+  --accent: var(--mantine-color-blue-6);
+  --accent-dark: var(--mantine-color-blue-7);
+  --accent-soft: var(--mantine-color-blue-0);
+  --border: var(--mantine-color-gray-3);
+  --border-strong: var(--mantine-color-gray-4);
+  --text: var(--mantine-color-dark-8);
+  --muted: var(--mantine-color-gray-6);
+  --radius-sm: var(--mantine-radius-sm);
+  --radius-md: var(--mantine-radius-md);
+  --radius-lg: var(--mantine-radius-lg);
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+  border-right: 1px solid rgba(255, 255, 255, .06);
+  gap: 24px;
+}
+
+.sidebar h2 {
+  color: #94a3b8;
+  letter-spacing: .13em;
+}
+
+.event-item {
+  border-radius: var(--mantine-radius-md);
+}
+
+.event-item.selected {
+  background: rgba(34, 139, 230, .14);
+  border-color: rgba(116, 192, 252, .24);
+}
+
+.event-item.selected::before {
+  background: var(--mantine-color-blue-4);
+  box-shadow: 0 0 0 5px rgba(77, 171, 247, .12);
+}
+
+.event-search-control {
+  margin: 5px 0 8px;
+}
+
+.mantine-event-search .mantine-TextInput-input {
+  min-height: 38px;
+  background: rgba(255, 255, 255, .07);
+  border-color: rgba(255, 255, 255, .10);
+  color: #fff;
+  box-shadow: none;
+}
+
+.mantine-event-search .mantine-TextInput-input::placeholder {
+  color: #7f8ca3;
+}
+
+.mantine-event-search .mantine-TextInput-input:hover {
+  border-color: rgba(255, 255, 255, .18);
+}
+
+.mantine-event-search .mantine-TextInput-input:focus {
+  border-color: var(--mantine-color-blue-5);
+  box-shadow: 0 0 0 3px rgba(34, 139, 230, .16);
+}
+
+.event-header {
+  padding: 18px 20px;
+  border: 1px solid var(--mantine-color-gray-2);
+  border-radius: var(--mantine-radius-lg);
+  background: rgba(255, 255, 255, .88);
+  box-shadow: var(--mantine-shadow-xs);
+  backdrop-filter: blur(12px);
+}
+
+.event-header h1 {
+  font-size: clamp(25px, 3vw, 34px);
+}
+
+.event-header-tools-host {
+  display: flex;
+  align-items: center;
+}
+
+.event-header-tools-host .mantine-Button-root {
+  box-shadow: none;
+}
+
+.tabs {
+  border-radius: var(--mantine-radius-lg);
+  border-color: var(--mantine-color-gray-2);
+  box-shadow: var(--mantine-shadow-xs);
+}
+
+.tabs button.active {
+  color: var(--mantine-color-blue-8);
+  background: var(--mantine-color-blue-0);
+}
+
+.panel {
+  border-color: var(--mantine-color-gray-2);
+  border-radius: var(--mantine-radius-lg);
+  box-shadow: var(--mantine-shadow-xs);
+}
+
+.primary {
+  background: var(--mantine-color-blue-6);
+  box-shadow: 0 6px 16px rgba(34, 139, 230, .18);
+}
+
+.primary:hover {
+  background: var(--mantine-color-blue-7);
+  box-shadow: 0 9px 22px rgba(34, 139, 230, .24);
+}
+
+@media (max-width: 900px) {
+  .event-header {
+    padding: 16px;
+  }
+}
