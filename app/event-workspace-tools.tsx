@@ -1,5 +1,17 @@
 "use client";
 
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Group,
+  Modal,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import { db } from "@/lib/db";
@@ -194,18 +206,26 @@ export default function EventWorkspaceTools() {
   const search = searchHost
     ? createPortal(
         <form className="event-search-control" onSubmit={searchEvents}>
-          <input
+          <TextInput
+            className="mantine-event-search"
             type="search"
+            size="sm"
             placeholder="Search events"
             aria-label="Search events"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            rightSection={query ? (
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                aria-label="Clear event search"
+                onClick={() => setQuery("")}
+              >
+                ×
+              </ActionIcon>
+            ) : undefined}
           />
-          {query && (
-            <button className="event-search-clear" type="button" aria-label="Clear event search" onClick={() => setQuery("")}>
-              ×
-            </button>
-          )}
         </form>,
         searchHost,
       )
@@ -213,68 +233,108 @@ export default function EventWorkspaceTools() {
 
   const editButton = headerHost && selectedEvent
     ? createPortal(
-        <button className="secondary event-edit-button" type="button" onClick={beginEdit}>
+        <Button className="event-edit-button" variant="default" size="sm" onClick={beginEdit}>
           Edit event
-        </button>,
+        </Button>,
         headerHost,
       )
     : null;
 
-  const modal = editing && selectedEvent && typeof document !== "undefined"
-    ? createPortal(
-        <div className="event-edit-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setEditing(false);
-        }}>
-          <section className="event-edit-dialog" role="dialog" aria-modal="true" aria-labelledby="event-edit-title">
-            <div className="event-edit-heading">
-              <div>
-                <p className="eyebrow">Event settings</p>
-                <h2 id="event-edit-title">Edit {selectedEvent.name}</h2>
-                <p className="muted">Changes update this event only. Shift details remain independent.</p>
-              </div>
-              <button className="event-edit-close" type="button" aria-label="Close event editor" onClick={() => setEditing(false)}>×</button>
-            </div>
+  return (
+    <>
+      {search}
+      {editButton}
+      <Modal
+        opened={editing && Boolean(selectedEvent)}
+        onClose={() => setEditing(false)}
+        title={selectedEvent ? `Edit ${selectedEvent.name}` : "Edit event"}
+        size="lg"
+      >
+        {selectedEvent && (
+          <form onSubmit={saveEvent}>
+            <Stack gap="md">
+              <Text size="sm" c="dimmed">Changes update this event only. Shift details remain independent.</Text>
 
-            <form className="event-edit-form" onSubmit={saveEvent}>
-              <label className="wide-field">Event name<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
-              <label>Date<input type="date" value={draft.date} onChange={(event) => setDraft({ ...draft, date: event.target.value })} /></label>
-              <label>Time<input type="time" value={draft.time} onChange={(event) => setDraft({ ...draft, time: event.target.value })} /></label>
-              <label className="wide-field">Venue<input value={draft.venue} onChange={(event) => setDraft({ ...draft, venue: event.target.value })} /></label>
-              <label className="wide-field">Briefing link<input type="url" placeholder="https://..." value={draft.briefingLink || ""} onChange={(event) => setDraft({ ...draft, briefingLink: event.target.value })} /></label>
+              <TextInput
+                label="Event name"
+                value={draft.name}
+                onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })}
+                required
+              />
 
-              <div className="wide-field event-day-groups">
-                <div>
-                  <strong>WhatsApp groups by day</strong>
-                  <p className="muted">Dates come from this event and its shifts. Shift messages use the matching day automatically.</p>
-                </div>
-                {eventDates.map((date) => (
-                  <label className="event-day-group-row" key={date}>
-                    <span>{formatDateLabel(date)}</span>
-                    <input
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                <TextInput
+                  label="Date"
+                  type="date"
+                  value={draft.date}
+                  onChange={(event) => setDraft({ ...draft, date: event.currentTarget.value })}
+                  required
+                />
+                <TextInput
+                  label="Time"
+                  type="time"
+                  value={draft.time}
+                  onChange={(event) => setDraft({ ...draft, time: event.currentTarget.value })}
+                />
+              </SimpleGrid>
+
+              <TextInput
+                label="Venue"
+                value={draft.venue}
+                onChange={(event) => setDraft({ ...draft, venue: event.currentTarget.value })}
+              />
+
+              <TextInput
+                label="Briefing link"
+                type="url"
+                placeholder="https://..."
+                value={draft.briefingLink || ""}
+                onChange={(event) => setDraft({ ...draft, briefingLink: event.currentTarget.value })}
+              />
+
+              <Paper withBorder radius="md" p="md">
+                <Stack gap="sm">
+                  <div>
+                    <Text fw={700} size="sm">WhatsApp groups by day</Text>
+                    <Text size="xs" c="dimmed">Dates come from this event and its shifts. Shift messages use the matching day automatically.</Text>
+                  </div>
+
+                  {eventDates.map((date) => (
+                    <TextInput
+                      key={date}
+                      label={formatDateLabel(date)}
                       type="url"
                       placeholder="https://chat.whatsapp.com/..."
                       value={draft.whatsappGroupLinksByDate?.[date] || ""}
-                      onChange={(event) => updateDayGroupLink(date, event.target.value)}
+                      onChange={(event) => updateDayGroupLink(date, event.currentTarget.value)}
                     />
-                  </label>
-                ))}
-                {eventDates.length === 0 && <p className="muted">Add dated shifts to manage day-specific WhatsApp groups.</p>}
-              </div>
+                  ))}
 
-              <label className="wide-field">Legacy/default WhatsApp group link<input type="url" placeholder="Optional fallback for older events" value={draft.whatsappGroupLink || ""} onChange={(event) => setDraft({ ...draft, whatsappGroupLink: event.target.value })} /></label>
+                  {eventDates.length === 0 && (
+                    <Text size="xs" c="dimmed">Add dated shifts to manage day-specific WhatsApp groups.</Text>
+                  )}
+                </Stack>
+              </Paper>
 
-              {notice && <div className="warning wide-field">{notice}</div>}
+              <TextInput
+                label="Legacy/default WhatsApp group link"
+                description="Optional fallback for older events"
+                type="url"
+                placeholder="https://chat.whatsapp.com/..."
+                value={draft.whatsappGroupLink || ""}
+                onChange={(event) => setDraft({ ...draft, whatsappGroupLink: event.currentTarget.value })}
+              />
 
-              <div className="event-edit-actions wide-field">
-                <button className="secondary" type="button" onClick={() => setEditing(false)}>Cancel</button>
-                <button className="primary" type="submit">Save event</button>
-              </div>
-            </form>
-          </section>
-        </div>,
-        document.body,
-      )
-    : null;
+              {notice && <Alert color="red">{notice}</Alert>}
 
-  return <>{search}{editButton}{modal}</>;
+              <Group justify="flex-end">
+                <Button variant="default" type="button" onClick={() => setEditing(false)}>Cancel</Button>
+                <Button type="submit">Save event</Button>
+              </Group>
+            </Stack>
+          </form>
+        )}
+      </Modal>
+    </>
+  );
 }
