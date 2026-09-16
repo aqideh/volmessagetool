@@ -4,6 +4,7 @@ import "./globals.css";
 import "./name-preference-toggle.css";
 import "./general-messaging.css";
 import "./sidebar-fix.css";
+import "./mantine-bridge.css";
 import Providers from "./providers";
 import NamePreferenceToggle from "./name-preference-toggle";
 import EventWorkspaceTools from "./event-workspace-tools";
