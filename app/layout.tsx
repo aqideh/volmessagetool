@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import "@mantine/core/styles.css";
 import "./globals.css";
 import "./name-preference-toggle.css";
 import "./general-messaging.css";
 import "./sidebar-fix.css";
+import Providers from "./providers";
 import NamePreferenceToggle from "./name-preference-toggle";
 import EventWorkspaceTools from "./event-workspace-tools";
 
@@ -15,13 +17,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <EventWorkspaceTools />
-        <div className="floating-tools">
-          <NamePreferenceToggle />
-          <a className="general-messages-shortcut" href="/general">General messages</a>
-          <a className="general-messages-shortcut" href="/roster-flags">Roster flags</a>
-        </div>
-        {children}
+        <Providers>
+          <EventWorkspaceTools />
+          <div className="floating-tools">
+            <NamePreferenceToggle />
+            <a className="general-messages-shortcut" href="/general">General messages</a>
+            <a className="general-messages-shortcut" href="/roster-flags">Roster flags</a>
+          </div>
+          {children}
+        </Providers>
       </body>
     </html>
   );
