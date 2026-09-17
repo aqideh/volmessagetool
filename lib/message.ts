@@ -1,7 +1,7 @@
 import type { AssignmentRecord, EventRecord, GeneralRecipientRecord, ShiftRecord, VolunteerRecord } from "./types";
 import { firstName, titleCaseName } from "./name";
 import { assignmentsForVolunteer } from "./assignments";
-import { formatDisplayDate } from "./date";
+import { formatDisplayDate, formatDisplayDateRange } from "./date";
 
 export const NAME_PREFERENCE_KEY = "volmessagetool-use-full-name";
 
@@ -65,10 +65,7 @@ function whatsappGroupLinkForDate(event: EventRecord, date?: string): string {
     if (dayLink) return dayLink;
   }
 
-  // Once an event uses day-specific groups, never guess with the legacy/default
-  // link for a missing day. This prevents volunteers being sent to the wrong chat.
   if (dayLinks.length) return "";
-
   return event.whatsappGroupLink ?? "";
 }
 
@@ -81,9 +78,6 @@ function formatWhatsAppGroupLinks(event: EventRecord, dates?: string[]): string 
     return entries.map(([date, link]) => `${formatDisplayDate(date)}: ${link}`).join("\n");
   }
 
-  // Older single-group events can still use the legacy/default link. A multi-day
-  // event with configured day groups intentionally returns blank when none of the
-  // volunteer's assigned dates has a matching link.
   if (allDayLinks.length) return "";
   return event.whatsappGroupLink ?? "";
 }
@@ -174,23 +168,21 @@ export function renderMessage(
   const groupLinksForVolunteer = volunteerShiftDates.length > 1
     ? formatWhatsAppGroupLinks(event, volunteerShiftDates)
     : whatsappGroupLinkForDate(event, groupDate);
+  const eventDateLabel = formatDisplayDateRange(event.date, event.endDate);
 
   const values: Record<string, string> = {
     ...personalValues(volunteer.name, volunteer.phone, volunteer.fields),
     role,
     role_line: role ? `\nYour assigned role is *${role}*.\n` : "",
     event_name: event.name,
-    event_date: formatDisplayDate(event.date),
+    event_date: eventDateLabel,
     event_time: event.time,
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
-    // Single-day/shift volunteers receive one day's link. Volunteers assigned
-    // across multiple days receive a dated list of only their relevant groups.
     whatsapp_group_link: groupLinksForVolunteer,
     whatsapp_group_links: formatWhatsAppGroupLinks(event, volunteerShiftDates),
     shift_summary: shiftSummary,
-    // Legacy aliases remain event-level fields, but are formatted for people.
-    date: formatDisplayDate(event.date),
+    date: eventDateLabel,
     time: event.time,
     venue: event.venue,
     shift_name: shift?.name ?? "",
