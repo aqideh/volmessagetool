@@ -11,6 +11,7 @@ import EventWorkspaceTools from "./event-workspace-tools";
 import NewEventFormTools from "./new-event-form-tools";
 import RosterTemplateDownload from "./roster-template-download";
 import MessageTemplateTools from "./message-template-tools";
+import ShiftPocTools from "./shift-poc-tools";
 
 export const metadata: Metadata = {
   title: "Volunteer Message Tool",
@@ -26,9 +27,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <NewEventFormTools />
           <RosterTemplateDownload />
           <MessageTemplateTools />
+          <ShiftPocTools />
           <div className="floating-tools">
             <NamePreferenceToggle />
             <a className="general-messages-shortcut" href="/general">General messages</a>
+            <a className="general-messages-shortcut" href="/pocs">POC directory</a>
             <a className="general-messages-shortcut" href="/roster-flags">Roster flags</a>
           </div>
           {children}
