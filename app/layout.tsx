@@ -9,6 +9,7 @@ import Providers from "./providers";
 import NamePreferenceToggle from "./name-preference-toggle";
 import EventWorkspaceTools from "./event-workspace-tools";
 import NewEventFormTools from "./new-event-form-tools";
+import RosterTemplateDownload from "./roster-template-download";
 
 export const metadata: Metadata = {
   title: "Volunteer Message Tool",
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Providers>
           <EventWorkspaceTools />
           <NewEventFormTools />
+          <RosterTemplateDownload />
           <div className="floating-tools">
             <NamePreferenceToggle />
             <a className="general-messages-shortcut" href="/general">General messages</a>
