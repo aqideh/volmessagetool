@@ -14,15 +14,16 @@ import {
 } from "@mantine/core";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { formatDisplayDate } from "@/lib/date";
+import { dateRange, formatDisplayDate } from "@/lib/date";
 import { db } from "@/lib/db";
 import type { EventRecord, ShiftRecord } from "@/lib/types";
 
-type EventDraft = Pick<EventRecord, "name" | "date" | "time" | "venue" | "briefingLink" | "whatsappGroupLink" | "whatsappGroupLinksByDate">;
+type EventDraft = Pick<EventRecord, "name" | "date" | "endDate" | "time" | "venue" | "briefingLink" | "whatsappGroupLink" | "whatsappGroupLinksByDate">;
 
 const emptyDraft = (): EventDraft => ({
   name: "",
   date: "",
+  endDate: "",
   time: "",
   venue: "",
   briefingLink: "",
@@ -46,14 +47,14 @@ export default function EventWorkspaceTools() {
     [events, selectedEventId],
   );
 
-  const eventDates = useMemo(() => {
+  const editorDates = useMemo(() => {
     if (!selectedEvent) return [];
-    const dates = shifts
+    const rangeDates = dateRange(draft.date || selectedEvent.date, draft.endDate || draft.date || selectedEvent.endDate || selectedEvent.date);
+    const shiftDates = shifts
       .filter((shift) => shift.eventId === selectedEvent.id && shift.date)
       .map((shift) => shift.date);
-    if (selectedEvent.date) dates.push(selectedEvent.date);
-    return [...new Set(dates)].sort();
-  }, [selectedEvent, shifts]);
+    return [...new Set([...rangeDates, ...shiftDates])].sort();
+  }, [selectedEvent, shifts, draft.date, draft.endDate]);
 
   const loadEvents = useCallback(async () => {
     const [allEvents, allShifts] = await Promise.all([
@@ -151,6 +152,7 @@ export default function EventWorkspaceTools() {
     setDraft({
       name: selectedEvent.name,
       date: selectedEvent.date,
+      endDate: selectedEvent.endDate || "",
       time: selectedEvent.time || "",
       venue: selectedEvent.venue || "",
       briefingLink: selectedEvent.briefingLink || "",
@@ -175,7 +177,11 @@ export default function EventWorkspaceTools() {
     event.preventDefault();
     if (!selectedEvent) return;
     if (!draft.name.trim() || !draft.date) {
-      setNotice("Event name and date are required.");
+      setNotice("Event name and start date are required.");
+      return;
+    }
+    if (draft.endDate && draft.endDate < draft.date) {
+      setNotice("End date cannot be before the start date.");
       return;
     }
 
@@ -188,6 +194,7 @@ export default function EventWorkspaceTools() {
     await db.events.update(selectedEvent.id, {
       name: draft.name.trim(),
       date: draft.date,
+      endDate: draft.endDate || undefined,
       time: draft.time,
       venue: draft.venue.trim(),
       briefingLink: draft.briefingLink?.trim() || "",
@@ -248,7 +255,7 @@ export default function EventWorkspaceTools() {
         {selectedEvent && (
           <form onSubmit={saveEvent}>
             <Stack gap="md">
-              <Text size="sm" c="dimmed">Changes update this event only. Shift details remain independent.</Text>
+              <Text size="sm" c="dimmed">Set an end date to make this a multi-day event. Shift details remain independent.</Text>
 
               <TextInput
                 label="Event name"
@@ -259,25 +266,35 @@ export default function EventWorkspaceTools() {
 
               <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
                 <TextInput
-                  label="Date"
+                  label="Start date"
                   type="date"
                   value={draft.date}
                   onChange={(event) => setDraft({ ...draft, date: event.currentTarget.value })}
                   required
                 />
                 <TextInput
+                  label="End date"
+                  description="Leave blank for a single-day event"
+                  type="date"
+                  min={draft.date || undefined}
+                  value={draft.endDate || ""}
+                  onChange={(event) => setDraft({ ...draft, endDate: event.currentTarget.value })}
+                />
+              </SimpleGrid>
+
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                <TextInput
                   label="Time"
                   type="time"
                   value={draft.time}
                   onChange={(event) => setDraft({ ...draft, time: event.currentTarget.value })}
                 />
+                <TextInput
+                  label="Venue"
+                  value={draft.venue}
+                  onChange={(event) => setDraft({ ...draft, venue: event.currentTarget.value })}
+                />
               </SimpleGrid>
-
-              <TextInput
-                label="Venue"
-                value={draft.venue}
-                onChange={(event) => setDraft({ ...draft, venue: event.currentTarget.value })}
-              />
 
               <TextInput
                 label="Briefing link"
@@ -291,10 +308,10 @@ export default function EventWorkspaceTools() {
                 <Stack gap="sm">
                   <div>
                     <Text fw={700} size="sm">WhatsApp groups by day</Text>
-                    <Text size="xs" c="dimmed">Dates come from this event and its shifts. Shift messages use the matching day automatically.</Text>
+                    <Text size="xs" c="dimmed">Every day in the event range appears here automatically. Shift dates outside the range are also shown.</Text>
                   </div>
 
-                  {eventDates.map((date) => (
+                  {editorDates.map((date) => (
                     <TextInput
                       key={date}
                       label={formatDisplayDate(date)}
@@ -305,8 +322,8 @@ export default function EventWorkspaceTools() {
                     />
                   ))}
 
-                  {eventDates.length === 0 && (
-                    <Text size="xs" c="dimmed">Add dated shifts to manage day-specific WhatsApp groups.</Text>
+                  {editorDates.length === 0 && (
+                    <Text size="xs" c="dimmed">Set the event dates to manage day-specific WhatsApp groups.</Text>
                   )}
                 </Stack>
               </Paper>
