@@ -2,6 +2,7 @@ import type { AssignmentRecord, EventRecord, GeneralRecipientRecord, ShiftRecord
 import { firstName, titleCaseName } from "./name";
 import { assignmentsForVolunteer } from "./assignments";
 import { formatDisplayDate, formatDisplayDateRange } from "./date";
+import { displayPhone } from "./phone";
 
 export const NAME_PREFERENCE_KEY = "volmessagetool-use-full-name";
 
@@ -13,6 +14,11 @@ export const SHIFT_VARIABLES = [
   "reporting_time",
   "shift_venue",
   "shift_notes",
+  "shift_whatsapp_group_link",
+  "poc_name",
+  "poc_phone",
+  "poc_contact",
+  "poc_line",
   "role",
   "role_line",
 ] as const;
@@ -20,6 +26,9 @@ export const SHIFT_VARIABLES = [
 export const EVENT_VARIABLES = [
   "event_name",
   "event_date",
+  "event_start_date",
+  "event_end_date",
+  "event_date_range",
   "event_time",
   "event_venue",
   "briefing_link",
@@ -82,6 +91,18 @@ function formatWhatsAppGroupLinks(event: EventRecord, dates?: string[]): string 
   return event.whatsappGroupLink ?? "";
 }
 
+function pocValues(shift?: ShiftRecord) {
+  const name = shift?.pocName ?? "";
+  const phone = shift?.pocPhone ? displayPhone(shift.pocPhone) : "";
+  const contact = name && phone ? `${name} · ${phone}` : name || phone;
+  return {
+    poc_name: name,
+    poc_phone: phone,
+    poc_contact: contact,
+    poc_line: contact ? `POC: ${contact}` : "",
+  };
+}
+
 function formatShiftSummary(
   volunteerId: string,
   shifts: ShiftRecord[],
@@ -95,6 +116,7 @@ function formatShiftSummary(
     .filter((item): item is { assignment: AssignmentRecord; shift: ShiftRecord } => Boolean(item.shift))
     .sort((a, b) => `${a.shift.date}${a.shift.startTime}`.localeCompare(`${b.shift.date}${b.shift.startTime}`))
     .map(({ assignment, shift }, index) => {
+      const poc = pocValues(shift);
       const lines = [
         `${index + 1}. ${shift.name}`,
         `📅 ${formatDisplayDate(shift.date)}`,
@@ -103,6 +125,8 @@ function formatShiftSummary(
         `📍 ${shift.venue}`,
       ];
       if (assignment.role) lines.push(`Role: ${assignment.role}`);
+      if (poc.poc_line) lines.push(poc.poc_line);
+      if (shift.notes) lines.push(`Notes: ${shift.notes}`);
       return lines.join("\n");
     })
     .join("\n\n");
@@ -111,7 +135,7 @@ function formatShiftSummary(
 export function sanitizeTemplate(template: string): string {
   return template
     .replace(/\\(?=\r?\n)/g, "")
-    .replace(/^\uFFFD\s*(?={{\s*(date|event_date|shift_date)\s*}})/gm, "📅 ")
+    .replace(/^\uFFFD\s*(?={{\s*(date|event_date|event_start_date|event_end_date|event_date_range|shift_date)\s*}})/gm, "📅 ")
     .replace(/^\uFFFD\s*(?=(Reporting time:|Event time:))/gm, "⏰ ")
     .replace(/^\uFFFD\s*(?={{\s*(venue|event_venue|shift_venue)\s*}})/gm, "📍 ")
     .replace(/\r\n/g, "\n");
@@ -169,6 +193,9 @@ export function renderMessage(
     ? formatWhatsAppGroupLinks(event, volunteerShiftDates)
     : whatsappGroupLinkForDate(event, groupDate);
   const eventDateLabel = formatDisplayDateRange(event.date, event.endDate);
+  const eventStartDate = formatDisplayDate(event.date);
+  const eventEndDate = event.endDate ? formatDisplayDate(event.endDate) : eventStartDate;
+  const shiftPoc = pocValues(shift);
 
   const values: Record<string, string> = {
     ...personalValues(volunteer.name, volunteer.phone, volunteer.fields),
@@ -176,6 +203,9 @@ export function renderMessage(
     role_line: role ? `\nYour assigned role is *${role}*.\n` : "",
     event_name: event.name,
     event_date: eventDateLabel,
+    event_start_date: eventStartDate,
+    event_end_date: eventEndDate,
+    event_date_range: eventDateLabel,
     event_time: event.time,
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
@@ -192,6 +222,8 @@ export function renderMessage(
     reporting_time: shift?.reportingTime ?? "",
     shift_venue: shift?.venue ?? "",
     shift_notes: shift?.notes ?? "",
+    shift_whatsapp_group_link: shift ? whatsappGroupLinkForDate(event, shift.date) : "",
+    ...shiftPoc,
   };
 
   return sanitizeTemplate(template).replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key: string) => values[key] ?? "");
