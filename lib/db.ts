@@ -11,6 +11,7 @@ import type {
   VolunteerRecord,
 } from "./types";
 import { titleCaseName } from "./name";
+import { dedupeAssignments } from "./assignments";
 
 const SEND_STATUS_RANK: Record<SendRecord["status"], number> = {
   pending: 0,
@@ -163,6 +164,47 @@ class VolunteerMessageDB extends Dexie {
         }
       });
 
+    // Multi-shift stability repair. Old data could contain duplicate, orphaned or
+    // cross-event assignment rows because [shiftId+volunteerId] was only an index.
+    this.version(6)
+      .stores({
+        events: "id,status,date,createdAt",
+        shifts: "id,eventId,date,startTime,createdAt,[eventId+name]",
+        volunteers: "id,eventId,phone,createdAt,[eventId+phone]",
+        assignments: "id,eventId,shiftId,volunteerId,createdAt,[shiftId+volunteerId]",
+        campaigns: "id,eventId,updatedAt,status,audienceType,shiftId",
+        sendRecords: "id,eventId,campaignId,volunteerId,status,[campaignId+volunteerId]",
+        generalCampaigns: "id,updatedAt,status,createdAt",
+        generalRecipients: "id,campaignId,phone,createdAt,[campaignId+phone]",
+        generalSendRecords: "id,campaignId,recipientId,status,[campaignId+recipientId]",
+      })
+      .upgrade(async (tx) => {
+        const assignmentTable = tx.table("assignments");
+        const [existing, shifts, volunteers] = await Promise.all([
+          assignmentTable.toArray() as Promise<AssignmentRecord[]>,
+          tx.table("shifts").toArray() as Promise<ShiftRecord[]>,
+          tx.table("volunteers").toArray() as Promise<VolunteerRecord[]>,
+        ]);
+
+        const shiftById = new Map(shifts.map((shift) => [shift.id, shift]));
+        const volunteerById = new Map(volunteers.map((volunteer) => [volunteer.id, volunteer]));
+        const repaired = dedupeAssignments(existing).filter((assignment) => {
+          const shift = shiftById.get(assignment.shiftId);
+          const volunteer = volunteerById.get(assignment.volunteerId);
+          return Boolean(
+            shift &&
+            volunteer &&
+            shift.eventId === volunteer.eventId &&
+            assignment.eventId === shift.eventId,
+          );
+        });
+
+        if (repaired.length !== existing.length) {
+          await assignmentTable.clear();
+          if (repaired.length) await assignmentTable.bulkAdd(repaired);
+        }
+      });
+
     this.volunteers.hook("creating", (_primaryKey, volunteer) => {
       volunteer.name = titleCaseName(volunteer.name);
     });
@@ -184,6 +226,43 @@ class VolunteerMessageDB extends Dexie {
         recipientChanges.name = titleCaseName(recipientChanges.name);
       }
     });
+
+    // Present canonical assignments to the app and coalesce accidental duplicate
+    // writes. This keeps audience calculations, previews and summaries consistent.
+    const rawAssignments = this.table<AssignmentRecord, string>("assignments");
+    const assignmentDb = this;
+    this.assignments = new Proxy(rawAssignments, {
+      get(target, property) {
+        if (property === "toArray") {
+          return async () => dedupeAssignments(await rawAssignments.toArray());
+        }
+
+        if (property === "add" || property === "put") {
+          return async (incoming: AssignmentRecord) => assignmentDb.transaction("rw", rawAssignments, async () => {
+            const matches = await rawAssignments
+              .where("[shiftId+volunteerId]")
+              .equals([incoming.shiftId, incoming.volunteerId])
+              .toArray();
+
+            if (!matches.length) return property === "add" ? rawAssignments.add(incoming) : rawAssignments.put(incoming);
+
+            const canonical = dedupeAssignments([...matches, incoming])[0];
+            const canonicalId = matches[0].id;
+            const duplicateIds = matches.slice(1).map((assignment) => assignment.id);
+            if (duplicateIds.length) await rawAssignments.bulkDelete(duplicateIds);
+            await rawAssignments.put({ ...canonical, id: canonicalId });
+            return canonicalId;
+          });
+        }
+
+        if (property === "bulkAdd") {
+          return async (records: AssignmentRecord[]) => rawAssignments.bulkAdd(dedupeAssignments(records));
+        }
+
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    }) as Table<AssignmentRecord, string>;
 
     // The compound index is not unique in the legacy schema, so enforce one logical
     // record per campaign/person in the table API itself. This also prevents two rapid
