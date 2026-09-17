@@ -21,11 +21,33 @@ export default function ShiftPocTools() {
   );
 
   const loadData = useCallback(async () => {
-    const [allEvents, allShifts, allPocs] = await Promise.all([
+    const [allEvents, initialShifts, allPocs] = await Promise.all([
       db.events.orderBy("date").reverse().toArray(),
       db.shifts.toArray(),
       db.pocs.orderBy("name").toArray(),
     ]);
+
+    const pocById = new Map(allPocs.map((poc) => [poc.id, poc]));
+    const allShifts = [...initialShifts];
+    const stale = allShifts.filter((shift) => {
+      if (!shift.pocId) return Boolean(shift.pocName || shift.pocPhone);
+      const poc = pocById.get(shift.pocId);
+      return !poc || shift.pocName !== poc.name || shift.pocPhone !== poc.phone;
+    });
+
+    if (stale.length) {
+      await db.transaction("rw", db.shifts, async () => {
+        for (const shift of stale) {
+          const poc = shift.pocId ? pocById.get(shift.pocId) : undefined;
+          const patch = poc
+            ? { pocName: poc.name, pocPhone: poc.phone }
+            : { pocId: undefined, pocName: undefined, pocPhone: undefined };
+          await db.shifts.update(shift.id, patch);
+          Object.assign(shift, patch);
+        }
+      });
+    }
+
     setEvents(allEvents);
     setShifts(allShifts);
     setPocs(allPocs);
