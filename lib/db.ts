@@ -6,6 +6,7 @@ import type {
   GeneralCampaignRecord,
   GeneralRecipientRecord,
   GeneralSendRecord,
+  PocRecord,
   SendRecord,
   ShiftRecord,
   VolunteerRecord,
@@ -50,6 +51,7 @@ class VolunteerMessageDB extends Dexie {
   generalCampaigns!: Table<GeneralCampaignRecord, string>;
   generalRecipients!: Table<GeneralRecipientRecord, string>;
   generalSendRecords!: Table<GeneralSendRecord, string>;
+  pocs!: Table<PocRecord, string>;
 
   constructor() {
     super("volunteer-message-tool");
@@ -140,8 +142,6 @@ class VolunteerMessageDB extends Dexie {
       generalSendRecords: "id,campaignId,recipientId,status,[campaignId+recipientId]",
     });
 
-    // Repair any duplicate event-send rows created by stale UI state during rapid
-    // Opened -> Sent transitions. Keep the most recently updated row per campaign/person.
     this.version(5)
       .stores({
         events: "id,status,date,createdAt",
@@ -164,8 +164,6 @@ class VolunteerMessageDB extends Dexie {
         }
       });
 
-    // Multi-shift stability repair. Old data could contain duplicate, orphaned or
-    // cross-event assignment rows because [shiftId+volunteerId] was only an index.
     this.version(6)
       .stores({
         events: "id,status,date,createdAt",
@@ -205,6 +203,19 @@ class VolunteerMessageDB extends Dexie {
         }
       });
 
+    this.version(7).stores({
+      events: "id,status,date,createdAt",
+      shifts: "id,eventId,date,startTime,createdAt,pocId,[eventId+name]",
+      volunteers: "id,eventId,phone,createdAt,[eventId+phone]",
+      assignments: "id,eventId,shiftId,volunteerId,createdAt,[shiftId+volunteerId]",
+      campaigns: "id,eventId,updatedAt,status,audienceType,shiftId",
+      sendRecords: "id,eventId,campaignId,volunteerId,status,[campaignId+volunteerId]",
+      generalCampaigns: "id,updatedAt,status,createdAt",
+      generalRecipients: "id,campaignId,phone,createdAt,[campaignId+phone]",
+      generalSendRecords: "id,campaignId,recipientId,status,[campaignId+recipientId]",
+      pocs: "id,name,phone,updatedAt,createdAt",
+    });
+
     this.volunteers.hook("creating", (_primaryKey, volunteer) => {
       volunteer.name = titleCaseName(volunteer.name);
     });
@@ -227,8 +238,17 @@ class VolunteerMessageDB extends Dexie {
       }
     });
 
-    // Present canonical assignments to the app and coalesce accidental duplicate
-    // writes. This keeps audience calculations, previews and summaries consistent.
+    this.pocs.hook("creating", (_primaryKey, poc) => {
+      poc.name = titleCaseName(poc.name);
+    });
+
+    this.pocs.hook("updating", (changes) => {
+      const pocChanges = changes as Partial<PocRecord>;
+      if (typeof pocChanges.name === "string") {
+        pocChanges.name = titleCaseName(pocChanges.name);
+      }
+    });
+
     const rawAssignments = this.table<AssignmentRecord, string>("assignments");
     const assignmentDb = this;
     this.assignments = new Proxy(rawAssignments, {
@@ -264,9 +284,6 @@ class VolunteerMessageDB extends Dexie {
       },
     }) as Table<AssignmentRecord, string>;
 
-    // The compound index is not unique in the legacy schema, so enforce one logical
-    // record per campaign/person in the table API itself. This also prevents two rapid
-    // status writes from creating separate rows when React state has not refreshed yet.
     const rawSendRecords = this.table<SendRecord, string>("sendRecords");
     const db = this;
     this.sendRecords = new Proxy(rawSendRecords, {
