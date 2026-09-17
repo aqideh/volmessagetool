@@ -12,6 +12,12 @@ export function normalizePhone(input: string): string | null {
   return parsed.number;
 }
 
+export function displayPhone(phone: string): string {
+  const parsed = parsePhoneNumberFromString(phone, "SG");
+  if (parsed?.country === "SG") return parsed.nationalNumber;
+  return phone;
+}
+
 export function whatsappUrl(phone: string, message: string): string {
   const digits = phone.replace(/\D/g, "");
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
