@@ -50,23 +50,41 @@ function useFullVolunteerName(): boolean {
   return window.localStorage.getItem(NAME_PREFERENCE_KEY) === "true";
 }
 
+function configuredDayGroupLinks(event: EventRecord): Array<[string, string]> {
+  return Object.entries(event.whatsappGroupLinksByDate ?? {})
+    .map(([date, link]) => [date, link.trim()] as [string, string])
+    .filter(([, link]) => Boolean(link))
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
+}
+
 function whatsappGroupLinkForDate(event: EventRecord, date?: string): string {
+  const dayLinks = configuredDayGroupLinks(event);
+
   if (date) {
-    const dayLink = event.whatsappGroupLinksByDate?.[date]?.trim();
+    const dayLink = dayLinks.find(([configuredDate]) => configuredDate === date)?.[1];
     if (dayLink) return dayLink;
   }
+
+  // Once an event uses day-specific groups, never guess with the legacy/default
+  // link for a missing day. This prevents volunteers being sent to the wrong chat.
+  if (dayLinks.length) return "";
+
   return event.whatsappGroupLink ?? "";
 }
 
 function formatWhatsAppGroupLinks(event: EventRecord, dates?: string[]): string {
   const allowedDates = dates?.length ? new Set(dates) : undefined;
-  const entries = Object.entries(event.whatsappGroupLinksByDate ?? {})
-    .filter(([date, link]) => Boolean(link.trim()) && (!allowedDates || allowedDates.has(date)))
-    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
+  const allDayLinks = configuredDayGroupLinks(event);
+  const entries = allDayLinks.filter(([date]) => !allowedDates || allowedDates.has(date));
 
   if (entries.length) {
-    return entries.map(([date, link]) => `${formatDisplayDate(date)}: ${link.trim()}`).join("\n");
+    return entries.map(([date, link]) => `${formatDisplayDate(date)}: ${link}`).join("\n");
   }
+
+  // Older single-group events can still use the legacy/default link. A multi-day
+  // event with configured day groups intentionally returns blank when none of the
+  // volunteer's assigned dates has a matching link.
+  if (allDayLinks.length) return "";
   return event.whatsappGroupLink ?? "";
 }
 
@@ -166,6 +184,8 @@ export function renderMessage(
     event_time: event.time,
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
+    // Single-day/shift volunteers receive one day's link. Volunteers assigned
+    // across multiple days receive a dated list of only their relevant groups.
     whatsapp_group_link: groupLinksForVolunteer,
     whatsapp_group_links: formatWhatsAppGroupLinks(event, volunteerShiftDates),
     shift_summary: shiftSummary,
