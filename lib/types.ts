@@ -22,6 +22,14 @@ export interface EventRecord {
   createdAt: string;
 }
 
+export interface PocRecord {
+  id: string;
+  name: string;
+  phone: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ShiftRecord {
   id: string;
   eventId: string;
@@ -32,6 +40,8 @@ export interface ShiftRecord {
   reportingTime: string;
   venue: string;
   notes: string;
+  /** References a global POC directory record. */
+  pocId?: string;
   createdAt: string;
 }
 
