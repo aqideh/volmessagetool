@@ -55,9 +55,14 @@ export default function PocDirectoryPage() {
     const phone = normalizePhone(editForm.phone);
     if (!name || !phone) return setNotice("Enter a POC name and valid phone number.");
     if (pocs.some((item) => item.id !== poc.id && item.phone === phone)) return setNotice("That phone number already exists in the POC directory.");
-    await db.pocs.update(poc.id, { name, phone, updatedAt: now() });
+
+    await db.transaction("rw", db.pocs, db.shifts, async () => {
+      await db.pocs.update(poc.id, { name, phone, updatedAt: now() });
+      await db.shifts.where("pocId").equals(poc.id).modify({ pocName: name, pocPhone: phone });
+    });
+
     setEditingId("");
-    setNotice("POC updated. Assigned shifts will show the updated details automatically.");
+    setNotice("POC updated. Assigned shifts and message variables now use the updated details.");
     await refresh();
   }
 
