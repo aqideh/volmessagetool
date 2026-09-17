@@ -7,7 +7,10 @@ export type RosterFlag = "yes" | "no" | "maybe" | "follow_up";
 export interface EventRecord {
   id: string;
   name: string;
+  /** ISO start date. Kept as `date` for backwards compatibility. */
   date: string;
+  /** Optional inclusive ISO end date for multi-day events. */
+  endDate?: string;
   time: string;
   venue: string;
   briefingLink?: string;
