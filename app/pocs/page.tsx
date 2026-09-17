@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { db } from "@/lib/db";
 import { titleCaseName } from "@/lib/name";
-import { normalizePhone } from "@/lib/phone";
+import { displayPhone, normalizePhone } from "@/lib/phone";
 import type { PocRecord } from "@/lib/types";
 
 const now = () => new Date().toISOString();
@@ -28,7 +28,7 @@ export default function PocDirectoryPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("en-SG");
     if (!q) return pocs;
-    return pocs.filter((poc) => `${poc.name} ${poc.phone}`.toLocaleLowerCase("en-SG").includes(q));
+    return pocs.filter((poc) => `${poc.name} ${displayPhone(poc.phone)}`.toLocaleLowerCase("en-SG").includes(q));
   }, [pocs, query]);
 
   async function addPoc(event: FormEvent) {
@@ -46,7 +46,7 @@ export default function PocDirectoryPage() {
 
   function beginEdit(poc: PocRecord) {
     setEditingId(poc.id);
-    setEditForm({ name: poc.name, phone: poc.phone });
+    setEditForm({ name: poc.name, phone: displayPhone(poc.phone) });
     setNotice("");
   }
 
@@ -88,7 +88,7 @@ export default function PocDirectoryPage() {
       <div className="stack">
         <section className="panel">
           <div className="split">
-            <div><h2>Add POC</h2><p className="muted">Phone numbers are normalized to the same format used elsewhere in the tool.</p></div>
+            <div><h2>Add POC</h2><p className="muted">Phone numbers are normalized internally; Singapore numbers display without +65.</p></div>
           </div>
           <form className="general-recipient-form" onSubmit={addPoc}>
             <input placeholder="Name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
@@ -112,7 +112,7 @@ export default function PocDirectoryPage() {
                   return (
                     <tr key={poc.id}>
                       <td>{editing ? <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} /> : poc.name}</td>
-                      <td>{editing ? <input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} /> : poc.phone}</td>
+                      <td>{editing ? <input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} /> : displayPhone(poc.phone)}</td>
                       <td>
                         <div className="row-actions">
                           {editing ? <>
