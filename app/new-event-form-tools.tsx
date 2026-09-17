@@ -15,23 +15,38 @@ const emptyForm = () => ({
   venue: "",
 });
 
+const dateLabelStyle = {
+  color: "#aeb8c8",
+  gap: 4,
+  fontSize: 10,
+  fontWeight: 700,
+  minWidth: 0,
+} as const;
+
 export default function NewEventFormTools() {
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [form, setForm] = useState(emptyForm());
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const legacyForm = document.querySelector<HTMLFormElement>(".sidebar .event-form");
+    const legacyForm = document.querySelector<HTMLFormElement>(".sidebar .event-form:not(.replacement-event-form)");
     if (!legacyForm) return;
 
+    // Keep only one replacement host and force-hide the legacy form. The app's
+    // .event-form display rule can otherwise override the browser's [hidden] rule.
+    document.querySelectorAll(".new-event-form-host").forEach((existingHost) => existingHost.remove());
     const portalHost = document.createElement("div");
     portalHost.className = "new-event-form-host";
     legacyForm.before(portalHost);
-    legacyForm.hidden = true;
+
+    const previousDisplay = legacyForm.style.display;
+    const previousPriority = legacyForm.style.getPropertyPriority("display");
+    legacyForm.style.setProperty("display", "none", "important");
     setHost(portalHost);
 
     return () => {
-      legacyForm.hidden = false;
+      if (previousDisplay) legacyForm.style.setProperty("display", previousDisplay, previousPriority);
+      else legacyForm.style.removeProperty("display");
       portalHost.remove();
     };
   }, []);
@@ -77,9 +92,9 @@ export default function NewEventFormTools() {
         onChange={(event) => setForm({ ...form, name: event.currentTarget.value })}
       />
 
-      <div className="field-row">
-        <label style={{ color: "#aeb8c8", gap: 4, fontSize: 10, fontWeight: 700 }}>
-          Start date
+      <div className="field-row" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
+        <label style={dateLabelStyle}>
+          <span style={{ whiteSpace: "nowrap" }}>Start date</span>
           <input
             type="date"
             aria-label="Start date"
@@ -94,8 +109,10 @@ export default function NewEventFormTools() {
             }}
           />
         </label>
-        <label style={{ color: "#aeb8c8", gap: 4, fontSize: 10, fontWeight: 700 }}>
-          End date <span style={{ fontWeight: 500, opacity: 0.75 }}>(optional)</span>
+        <label style={dateLabelStyle}>
+          <span style={{ whiteSpace: "nowrap" }}>
+            End date <span style={{ fontWeight: 500, opacity: 0.75 }}>(optional)</span>
+          </span>
           <input
             type="date"
             aria-label="End date"
