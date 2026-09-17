@@ -6,6 +6,9 @@ import { displayPhone } from "./phone";
 
 export const NAME_PREFERENCE_KEY = "volmessagetool-use-full-name";
 
+// These variables require one unambiguous target shift. Context-aware POC/link
+// variables live outside this list so they can safely resolve across all shifts a
+// volunteer is actually assigned to.
 export const SHIFT_VARIABLES = [
   "shift_name",
   "shift_date",
@@ -17,8 +20,6 @@ export const SHIFT_VARIABLES = [
   "shift_whatsapp_group_link",
   "poc_name",
   "poc_phone",
-  "poc_contact",
-  "poc_line",
   "role",
   "role_line",
 ] as const;
@@ -34,6 +35,9 @@ export const EVENT_VARIABLES = [
   "briefing_link",
   "whatsapp_group_link",
   "whatsapp_group_links",
+  "poc_contact",
+  "poc_contacts",
+  "poc_line",
   "date",
   "time",
   "venue",
@@ -74,6 +78,8 @@ function whatsappGroupLinkForDate(event: EventRecord, date?: string): string {
     if (dayLink) return dayLink;
   }
 
+  // Once day-specific links exist, never fall back to an event-wide link for a
+  // different/missing day.
   if (dayLinks.length) return "";
   return event.whatsappGroupLink ?? "";
 }
@@ -100,6 +106,67 @@ function pocValues(shift?: ShiftRecord) {
     poc_phone: phone,
     poc_contact: contact,
     poc_line: contact ? `POC: ${contact}` : "",
+  };
+}
+
+function relevantShiftsForVolunteer(
+  volunteerId: string,
+  shifts: ShiftRecord[],
+  assignments: AssignmentRecord[],
+): ShiftRecord[] {
+  const shiftById = new Map(shifts.map((shift) => [shift.id, shift]));
+  return assignmentsForVolunteer(assignments, volunteerId, shifts)
+    .map((assignment) => shiftById.get(assignment.shiftId))
+    .filter((shift): shift is ShiftRecord => Boolean(shift))
+    .sort((a, b) => `${a.date}${a.startTime}${a.name}`.localeCompare(`${b.date}${b.startTime}${b.name}`));
+}
+
+function distinctPocContacts(shifts: ShiftRecord[]) {
+  const seen = new Set<string>();
+  const contacts: Array<{ name: string; phone: string; contact: string }> = [];
+
+  for (const shift of shifts) {
+    const poc = pocValues(shift);
+    if (!poc.poc_contact) continue;
+    const key = `${poc.poc_name}\u0000${poc.poc_phone}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    contacts.push({ name: poc.poc_name, phone: poc.poc_phone, contact: poc.poc_contact });
+  }
+
+  return contacts;
+}
+
+function formatRelevantPocContacts(shifts: ShiftRecord[]): string {
+  const assigned = shifts.filter((shift) => Boolean(pocValues(shift).poc_contact));
+  if (!assigned.length) return "";
+
+  const unique = distinctPocContacts(assigned);
+  if (unique.length === 1) return unique[0].contact;
+
+  return assigned
+    .map((shift) => `${shift.name} (${formatDisplayDate(shift.date)}): ${pocValues(shift).poc_contact}`)
+    .join("\n");
+}
+
+function contextualPocValues(shifts: ShiftRecord[], explicitShift?: ShiftRecord) {
+  const relevant = explicitShift ? [explicitShift] : shifts;
+  const unique = distinctPocContacts(relevant);
+  const contacts = formatRelevantPocContacts(relevant);
+  const single = unique.length === 1 ? unique[0] : undefined;
+
+  return {
+    // Name/phone remain intentionally blank when there is more than one distinct
+    // POC; the aggregate variables below preserve the shift-to-POC relationship.
+    poc_name: single?.name ?? "",
+    poc_phone: single?.phone ?? "",
+    poc_contact: contacts,
+    poc_contacts: contacts,
+    poc_line: contacts
+      ? unique.length <= 1
+        ? `POC: ${contacts}`
+        : `POCs:\n${contacts}`
+      : "",
   };
 }
 
@@ -181,21 +248,21 @@ export function renderMessage(
   allAssignments: AssignmentRecord[] = [],
 ): string {
   const role = assignment?.role ?? "";
-  const volunteerAssignments = assignmentsForVolunteer(allAssignments, volunteer.id, allShifts);
-  const volunteerShiftDates = [...new Set(
-    volunteerAssignments
-      .map((item) => allShifts.find((shiftItem) => shiftItem.id === item.shiftId)?.date)
-      .filter((date): date is string => Boolean(date)),
-  )].sort();
+  const relevantShifts = relevantShiftsForVolunteer(volunteer.id, allShifts, allAssignments);
+  const volunteerShiftDates = [...new Set(relevantShifts.map((item) => item.date))].sort();
   const shiftSummary = formatShiftSummary(volunteer.id, allShifts, allAssignments);
-  const groupDate = shift?.date || (volunteerShiftDates.length === 1 ? volunteerShiftDates[0] : event.date);
-  const groupLinksForVolunteer = volunteerShiftDates.length > 1
-    ? formatWhatsAppGroupLinks(event, volunteerShiftDates)
-    : whatsappGroupLinkForDate(event, groupDate);
+
+  // For a one-shift campaign, use that exact shift date. Otherwise derive links
+  // only from the dates of shifts this volunteer is actually assigned to.
+  const relevantDates = shift ? [shift.date] : volunteerShiftDates;
+  const groupLinksForVolunteer = relevantDates.length > 1
+    ? formatWhatsAppGroupLinks(event, relevantDates)
+    : whatsappGroupLinkForDate(event, relevantDates[0] || event.date);
+
   const eventDateLabel = formatDisplayDateRange(event.date, event.endDate);
   const eventStartDate = formatDisplayDate(event.date);
   const eventEndDate = event.endDate ? formatDisplayDate(event.endDate) : eventStartDate;
-  const shiftPoc = pocValues(shift);
+  const contextualPocs = contextualPocValues(relevantShifts, shift);
 
   const values: Record<string, string> = {
     ...personalValues(volunteer.name, volunteer.phone, volunteer.fields),
@@ -210,7 +277,7 @@ export function renderMessage(
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
     whatsapp_group_link: groupLinksForVolunteer,
-    whatsapp_group_links: formatWhatsAppGroupLinks(event, volunteerShiftDates),
+    whatsapp_group_links: formatWhatsAppGroupLinks(event, relevantDates),
     shift_summary: shiftSummary,
     date: eventDateLabel,
     time: event.time,
@@ -223,7 +290,7 @@ export function renderMessage(
     shift_venue: shift?.venue ?? "",
     shift_notes: shift?.notes ?? "",
     shift_whatsapp_group_link: shift ? whatsappGroupLinkForDate(event, shift.date) : "",
-    ...shiftPoc,
+    ...contextualPocs,
   };
 
   return sanitizeTemplate(template).replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (_, key: string) => values[key] ?? "");
