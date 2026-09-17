@@ -9,7 +9,7 @@ const groups = [
     variables: ["{{first_name}}", "{{name}}", "{{phone}}"],
   },
   {
-    title: "Event",
+    title: "Event / assignment-aware",
     variables: [
       "{{event_name}}",
       "{{event_date}}",
@@ -21,10 +21,13 @@ const groups = [
       "{{briefing_link}}",
       "{{whatsapp_group_link}}",
       "{{whatsapp_group_links}}",
+      "{{poc_contact}}",
+      "{{poc_contacts}}",
+      "{{poc_line}}",
     ],
   },
   {
-    title: "One shift",
+    title: "One shift only",
     variables: [
       "{{role}}",
       "{{role_line}}",
@@ -38,8 +41,6 @@ const groups = [
       "{{shift_whatsapp_group_link}}",
       "{{poc_name}}",
       "{{poc_phone}}",
-      "{{poc_contact}}",
-      "{{poc_line}}",
     ],
   },
   {
@@ -95,7 +96,7 @@ export default function MessageVariableReference() {
           </div>
         ))}
         <p className="muted" style={{ margin: 0 }}>
-          POC and shift-specific variables are available only for one-shift campaigns. Multi-shift messages should use {"{{shift_summary}}"}, which includes each shift&apos;s role, notes and assigned POC when available.
+          Assignment-aware variables automatically use only the shifts that recipient is signed up for. If there is one relevant WhatsApp group or POC, a single value is inserted. If there are several, the message gets a labelled list. One-shift variables remain restricted to one-shift campaigns. {"{{shift_summary}}"} includes each assigned shift&apos;s timing, venue, role, notes and POC.
         </p>
       </div>
     </details>,
