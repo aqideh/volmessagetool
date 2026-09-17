@@ -19,6 +19,9 @@ import { db } from "@/lib/db";
 import type { EventRecord, ShiftRecord } from "@/lib/types";
 
 type EventDraft = Pick<EventRecord, "name" | "date" | "endDate" | "time" | "venue" | "briefingLink" | "whatsappGroupLink" | "whatsappGroupLinksByDate">;
+type ShiftActionHost = { shiftId: string; host: HTMLElement };
+
+const DUPLICATE_SHIFT_KEY = "volmessagetool-edit-shift-after-duplicate";
 
 const emptyDraft = (): EventDraft => ({
   name: "",
@@ -31,6 +34,18 @@ const emptyDraft = (): EventDraft => ({
   whatsappGroupLinksByDate: {},
 });
 
+function nextDuplicateName(shift: ShiftRecord, eventShifts: ShiftRecord[]): string {
+  const names = new Set(eventShifts.map((item) => item.name.trim().toLocaleLowerCase("en-SG")));
+  const base = `${shift.name.trim()} copy`;
+  let candidate = base;
+  let number = 2;
+  while (names.has(candidate.toLocaleLowerCase("en-SG"))) {
+    candidate = `${base} ${number}`;
+    number += 1;
+  }
+  return candidate;
+}
+
 export default function EventWorkspaceTools() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [shifts, setShifts] = useState<ShiftRecord[]>([]);
@@ -38,6 +53,7 @@ export default function EventWorkspaceTools() {
   const [query, setQuery] = useState("");
   const [searchHost, setSearchHost] = useState<HTMLElement | null>(null);
   const [headerHost, setHeaderHost] = useState<HTMLElement | null>(null);
+  const [shiftActionHosts, setShiftActionHosts] = useState<ShiftActionHost[]>([]);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<EventDraft>(emptyDraft());
   const [notice, setNotice] = useState("");
@@ -63,50 +79,120 @@ export default function EventWorkspaceTools() {
     ]);
     setEvents(allEvents);
     setShifts(allShifts);
-    return allEvents;
+    return { allEvents, allShifts };
   }, []);
 
   const syncSelectedEvent = useCallback((allEvents: EventRecord[]) => {
     const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>(".sidebar .event-list .event-item"));
     const selectedIndex = buttons.findIndex((button) => button.classList.contains("selected"));
-    setSelectedEventId(selectedIndex >= 0 ? allEvents[selectedIndex]?.id || "" : "");
+    const nextEventId = selectedIndex >= 0 ? allEvents[selectedIndex]?.id || "" : "";
+    setSelectedEventId(nextEventId);
+    return nextEventId;
+  }, []);
+
+  const syncShiftActionHosts = useCallback((eventId: string, allShifts: ShiftRecord[]) => {
+    const eventShifts = allShifts.filter((shift) => shift.eventId === eventId);
+    const cards = Array.from(document.querySelectorAll<HTMLElement>(".workspace .shift-card"));
+    const nextHosts: ShiftActionHost[] = [];
+
+    cards.forEach((card) => {
+      const shiftName = card.querySelector("h2")?.textContent?.trim();
+      if (!shiftName) return;
+      const shift = eventShifts.find((item) => item.name === shiftName);
+      const actions = card.querySelector<HTMLElement>(".shift-card-actions");
+      if (!shift || !actions) return;
+
+      let host = actions.querySelector<HTMLElement>(`.shift-duplicate-host[data-shift-id="${shift.id}"]`);
+      if (!host) {
+        host = document.createElement("span");
+        host.className = "shift-duplicate-host";
+        host.dataset.shiftId = shift.id;
+        const removeButton = Array.from(actions.querySelectorAll<HTMLButtonElement>("button"))
+          .find((button) => button.textContent?.trim() === "Remove");
+        if (removeButton) actions.insertBefore(host, removeButton);
+        else actions.appendChild(host);
+      }
+      nextHosts.push({ shiftId: shift.id, host });
+    });
+
+    setShiftActionHosts((current) => {
+      const unchanged = current.length === nextHosts.length
+        && current.every((item, index) => item.shiftId === nextHosts[index]?.shiftId && item.host === nextHosts[index]?.host);
+      return unchanged ? current : nextHosts;
+    });
+  }, []);
+
+  const resumeDuplicatedShiftEdit = useCallback((eventId: string, allShifts: ShiftRecord[]) => {
+    const pendingShiftId = sessionStorage.getItem(DUPLICATE_SHIFT_KEY);
+    if (!pendingShiftId) return;
+
+    const pendingShift = allShifts.find((shift) => shift.id === pendingShiftId && shift.eventId === eventId);
+    if (!pendingShift) return;
+
+    const cards = Array.from(document.querySelectorAll<HTMLElement>(".workspace .shift-card"));
+    if (cards.length === 0) {
+      const shiftsTab = Array.from(document.querySelectorAll<HTMLButtonElement>(".workspace .tabs button"))
+        .find((button) => button.textContent?.trim() === "Shifts");
+      if (shiftsTab && !shiftsTab.classList.contains("active")) shiftsTab.click();
+      return;
+    }
+
+    const card = cards.find((item) => item.querySelector("h2")?.textContent?.trim() === pendingShift.name);
+    if (!card) return;
+    const editButton = Array.from(card.querySelectorAll<HTMLButtonElement>(".shift-card-actions button"))
+      .find((button) => button.textContent?.trim() === "Edit");
+    if (!editButton) return;
+
+    sessionStorage.removeItem(DUPLICATE_SHIFT_KEY);
+    editButton.click();
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
   useEffect(() => {
     let observer: MutationObserver | undefined;
     let cancelled = false;
+    let ensuring = false;
 
     const ensureHosts = async () => {
-      const eventList = document.querySelector<HTMLElement>(".sidebar .event-list");
-      const eventHeader = document.querySelector<HTMLElement>(".workspace .event-header");
+      if (ensuring) return;
+      ensuring = true;
+      try {
+        const eventList = document.querySelector<HTMLElement>(".sidebar .event-list");
+        const eventHeader = document.querySelector<HTMLElement>(".workspace .event-header");
 
-      if (eventList) {
-        let host = eventList.querySelector<HTMLElement>(".event-search-host");
-        if (!host) {
-          host = document.createElement("div");
-          host.className = "event-search-host";
-          const heading = eventList.querySelector("h2");
-          heading?.insertAdjacentElement("afterend", host);
+        if (eventList) {
+          let host = eventList.querySelector<HTMLElement>(".event-search-host");
+          if (!host) {
+            host = document.createElement("div");
+            host.className = "event-search-host";
+            const heading = eventList.querySelector("h2");
+            heading?.insertAdjacentElement("afterend", host);
+          }
+          if (!cancelled) setSearchHost((current) => (current === host ? current : host));
         }
-        if (!cancelled) setSearchHost((current) => (current === host ? current : host));
-      }
 
-      if (eventHeader) {
-        let host = eventHeader.querySelector<HTMLElement>(".event-header-tools-host");
-        if (!host) {
-          host = document.createElement("div");
-          host.className = "event-header-tools-host";
-          const archiveButton = eventHeader.querySelector(":scope > button.secondary");
-          if (archiveButton) eventHeader.insertBefore(host, archiveButton);
-          else eventHeader.appendChild(host);
+        if (eventHeader) {
+          let host = eventHeader.querySelector<HTMLElement>(".event-header-tools-host");
+          if (!host) {
+            host = document.createElement("div");
+            host.className = "event-header-tools-host";
+            const archiveButton = eventHeader.querySelector(":scope > button.secondary");
+            if (archiveButton) eventHeader.insertBefore(host, archiveButton);
+            else eventHeader.appendChild(host);
+          }
+          if (!cancelled) setHeaderHost((current) => (current === host ? current : host));
+        } else if (!cancelled) {
+          setHeaderHost(null);
         }
-        if (!cancelled) setHeaderHost((current) => (current === host ? current : host));
-      } else if (!cancelled) {
-        setHeaderHost(null);
-      }
 
-      const currentEvents = await loadEvents();
-      if (!cancelled) syncSelectedEvent(currentEvents);
+        const { allEvents, allShifts } = await loadEvents();
+        if (cancelled) return;
+        const eventId = syncSelectedEvent(allEvents);
+        syncShiftActionHosts(eventId, allShifts);
+        resumeDuplicatedShiftEdit(eventId, allShifts);
+      } finally {
+        ensuring = false;
+      }
     };
 
     void ensureHosts();
@@ -128,8 +214,9 @@ export default function EventWorkspaceTools() {
       });
       document.querySelector(".event-search-host")?.remove();
       document.querySelector(".event-header-tools-host")?.remove();
+      document.querySelectorAll(".shift-duplicate-host").forEach((host) => host.remove());
     };
-  }, [loadEvents, syncSelectedEvent]);
+  }, [loadEvents, resumeDuplicatedShiftEdit, syncSelectedEvent, syncShiftActionHosts]);
 
   useEffect(() => {
     const normalized = query.trim().toLocaleLowerCase("en-SG");
@@ -161,6 +248,25 @@ export default function EventWorkspaceTools() {
     });
     setNotice("");
     setEditing(true);
+  }
+
+  async function duplicateShift(shiftId: string) {
+    const source = shifts.find((shift) => shift.id === shiftId);
+    if (!source) return;
+    const eventShifts = shifts.filter((shift) => shift.eventId === source.eventId);
+    const duplicateId = crypto.randomUUID();
+
+    await db.shifts.add({
+      ...source,
+      id: duplicateId,
+      name: nextDuplicateName(source, eventShifts),
+      createdAt: new Date().toISOString(),
+    });
+
+    // Only shift configuration is duplicated. Volunteers, assignments and campaigns
+    // remain linked to the original shift until staff explicitly changes them.
+    sessionStorage.setItem(DUPLICATE_SHIFT_KEY, duplicateId);
+    window.location.reload();
   }
 
   function updateDayGroupLink(date: string, link: string) {
@@ -242,10 +348,19 @@ export default function EventWorkspaceTools() {
       )
     : null;
 
+  const duplicateButtons = shiftActionHosts.map(({ shiftId, host }) => createPortal(
+    <button className="secondary compact" type="button" onClick={() => void duplicateShift(shiftId)}>
+      Duplicate
+    </button>,
+    host,
+    shiftId,
+  ));
+
   return (
     <>
       {search}
       {editButton}
+      {duplicateButtons}
       <Modal
         opened={editing && Boolean(selectedEvent)}
         onClose={() => setEditing(false)}
