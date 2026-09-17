@@ -40,8 +40,11 @@ export interface ShiftRecord {
   reportingTime: string;
   venue: string;
   notes: string;
-  /** References a global POC directory record. */
+  /** References the authoritative global POC directory record. */
   pocId?: string;
+  /** Cached display fields kept in sync with pocId so synchronous message rendering can use them. */
+  pocName?: string;
+  pocPhone?: string;
   createdAt: string;
 }
 
