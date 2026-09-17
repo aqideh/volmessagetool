@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { db } from "@/lib/db";
+import { displayPhone } from "@/lib/phone";
 import type { EventRecord, PocRecord, ShiftRecord } from "@/lib/types";
 
 type ShiftHost = { shiftId: string; host: HTMLElement };
@@ -110,10 +111,10 @@ export default function ShiftPocTools() {
           Point of contact
           <select value={shift.pocId || ""} onChange={(event) => void assignPoc(shift.id, event.currentTarget.value)}>
             <option value="">No POC assigned</option>
-            {pocs.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.phone}</option>)}
+            {pocs.map((item) => <option key={item.id} value={item.id}>{item.name} · {displayPhone(item.phone)}</option>)}
           </select>
         </label>
-        {poc ? <small className="muted">{poc.name} · {poc.phone}</small> : <small className="muted">Assign from the global POC directory.</small>}
+        {poc ? <small className="muted">{poc.name} · {displayPhone(poc.phone)}</small> : <small className="muted">Assign from the global POC directory.</small>}
       </div>,
       host,
       shiftId,
