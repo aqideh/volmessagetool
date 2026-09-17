@@ -1,5 +1,6 @@
 import type { AssignmentRecord, EventRecord, GeneralRecipientRecord, ShiftRecord, VolunteerRecord } from "./types";
 import { firstName, titleCaseName } from "./name";
+import { assignmentsForVolunteer } from "./assignments";
 
 export const NAME_PREFERENCE_KEY = "volmessagetool-use-full-name";
 
@@ -62,9 +63,10 @@ function whatsappGroupLinkForDate(event: EventRecord, date?: string): string {
   return event.whatsappGroupLink ?? "";
 }
 
-function formatWhatsAppGroupLinks(event: EventRecord): string {
+function formatWhatsAppGroupLinks(event: EventRecord, dates?: string[]): string {
+  const allowedDates = dates?.length ? new Set(dates) : undefined;
   const entries = Object.entries(event.whatsappGroupLinksByDate ?? {})
-    .filter(([, link]) => Boolean(link.trim()))
+    .filter(([date, link]) => Boolean(link.trim()) && (!allowedDates || allowedDates.has(date)))
     .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
 
   if (entries.length) {
@@ -79,15 +81,16 @@ function formatShiftSummary(
   assignments: AssignmentRecord[],
 ): string {
   const shiftById = new Map(shifts.map((shift) => [shift.id, shift]));
-  return assignments
-    .filter((assignment) => assignment.volunteerId === volunteerId)
+  const canonicalAssignments = assignmentsForVolunteer(assignments, volunteerId, shifts);
+
+  return canonicalAssignments
     .map((assignment) => ({ assignment, shift: shiftById.get(assignment.shiftId) }))
     .filter((item): item is { assignment: AssignmentRecord; shift: ShiftRecord } => Boolean(item.shift))
     .sort((a, b) => `${a.shift.date}${a.shift.startTime}`.localeCompare(`${b.shift.date}${b.shift.startTime}`))
     .map(({ assignment, shift }, index) => {
       const lines = [
         `${index + 1}. ${shift.name}`,
-        `📅 ${shift.date}`,
+        `📅 ${formatDateLabel(shift.date)}`,
         `⏰ Report: ${shift.reportingTime}`,
         `🕘 ${shift.startTime}${shift.endTime ? `–${shift.endTime}` : ""}`,
         `📍 ${shift.venue}`,
@@ -147,8 +150,17 @@ export function renderMessage(
   allAssignments: AssignmentRecord[] = [],
 ): string {
   const role = assignment?.role ?? "";
+  const volunteerAssignments = assignmentsForVolunteer(allAssignments, volunteer.id, allShifts);
+  const volunteerShiftDates = [...new Set(
+    volunteerAssignments
+      .map((item) => allShifts.find((shiftItem) => shiftItem.id === item.shiftId)?.date)
+      .filter((date): date is string => Boolean(date)),
+  )].sort();
   const shiftSummary = formatShiftSummary(volunteer.id, allShifts, allAssignments);
-  const groupDate = shift?.date || event.date;
+  const groupDate = shift?.date || (volunteerShiftDates.length === 1 ? volunteerShiftDates[0] : event.date);
+  const groupLinksForVolunteer = volunteerShiftDates.length > 1
+    ? formatWhatsAppGroupLinks(event, volunteerShiftDates)
+    : whatsappGroupLinkForDate(event, groupDate);
 
   const values: Record<string, string> = {
     ...personalValues(volunteer.name, volunteer.phone, volunteer.fields),
@@ -159,8 +171,10 @@ export function renderMessage(
     event_time: event.time,
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
-    whatsapp_group_link: whatsappGroupLinkForDate(event, groupDate),
-    whatsapp_group_links: formatWhatsAppGroupLinks(event),
+    // For a one-shift message, this is the matching day's group. For a volunteer
+    // spanning multiple days, return the relevant day links instead of guessing.
+    whatsapp_group_link: groupLinksForVolunteer,
+    whatsapp_group_links: formatWhatsAppGroupLinks(event, volunteerShiftDates),
     shift_summary: shiftSummary,
     // Legacy aliases are fixed to event-level fields. They never inherit shift data.
     date: event.date,
