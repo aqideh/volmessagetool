@@ -97,8 +97,12 @@ export default function ShiftPocTools() {
   }, [loadData, syncHosts, syncSelectedEvent]);
 
   async function assignPoc(shiftId: string, pocId: string) {
-    await db.shifts.update(shiftId, { pocId: pocId || undefined });
-    setShifts((current) => current.map((shift) => shift.id === shiftId ? { ...shift, pocId: pocId || undefined } : shift));
+    const poc = pocs.find((item) => item.id === pocId);
+    const patch = pocId && poc
+      ? { pocId, pocName: poc.name, pocPhone: poc.phone }
+      : { pocId: undefined, pocName: undefined, pocPhone: undefined };
+    await db.shifts.update(shiftId, patch);
+    setShifts((current) => current.map((shift) => shift.id === shiftId ? { ...shift, ...patch } : shift));
   }
 
   return <>{hosts.map(({ shiftId, host }) => {
