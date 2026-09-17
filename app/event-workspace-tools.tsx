@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
+import { formatDisplayDate } from "@/lib/date";
 import { db } from "@/lib/db";
 import type { EventRecord, ShiftRecord } from "@/lib/types";
 
@@ -28,12 +29,6 @@ const emptyDraft = (): EventDraft => ({
   whatsappGroupLink: "",
   whatsappGroupLinksByDate: {},
 });
-
-function formatDateLabel(value: string): string {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return value;
-  return new Intl.DateTimeFormat("en-SG", { weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(new Date(year, month - 1, day));
-}
 
 export default function EventWorkspaceTools() {
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -302,7 +297,7 @@ export default function EventWorkspaceTools() {
                   {eventDates.map((date) => (
                     <TextInput
                       key={date}
-                      label={formatDateLabel(date)}
+                      label={formatDisplayDate(date)}
                       type="url"
                       placeholder="https://chat.whatsapp.com/..."
                       value={draft.whatsappGroupLinksByDate?.[date] || ""}
