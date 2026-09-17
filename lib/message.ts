@@ -1,6 +1,7 @@
 import type { AssignmentRecord, EventRecord, GeneralRecipientRecord, ShiftRecord, VolunteerRecord } from "./types";
 import { firstName, titleCaseName } from "./name";
 import { assignmentsForVolunteer } from "./assignments";
+import { formatDisplayDate } from "./date";
 
 export const NAME_PREFERENCE_KEY = "volmessagetool-use-full-name";
 
@@ -49,12 +50,6 @@ function useFullVolunteerName(): boolean {
   return window.localStorage.getItem(NAME_PREFERENCE_KEY) === "true";
 }
 
-function formatDateLabel(value: string): string {
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return value;
-  return new Intl.DateTimeFormat("en-SG", { day: "numeric", month: "short", year: "numeric" }).format(new Date(year, month - 1, day));
-}
-
 function whatsappGroupLinkForDate(event: EventRecord, date?: string): string {
   if (date) {
     const dayLink = event.whatsappGroupLinksByDate?.[date]?.trim();
@@ -70,7 +65,7 @@ function formatWhatsAppGroupLinks(event: EventRecord, dates?: string[]): string 
     .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
 
   if (entries.length) {
-    return entries.map(([date, link]) => `${formatDateLabel(date)}: ${link.trim()}`).join("\n");
+    return entries.map(([date, link]) => `${formatDisplayDate(date)}: ${link.trim()}`).join("\n");
   }
   return event.whatsappGroupLink ?? "";
 }
@@ -90,7 +85,7 @@ function formatShiftSummary(
     .map(({ assignment, shift }, index) => {
       const lines = [
         `${index + 1}. ${shift.name}`,
-        `📅 ${formatDateLabel(shift.date)}`,
+        `📅 ${formatDisplayDate(shift.date)}`,
         `⏰ Report: ${shift.reportingTime}`,
         `🕘 ${shift.startTime}${shift.endTime ? `–${shift.endTime}` : ""}`,
         `📍 ${shift.venue}`,
@@ -167,21 +162,19 @@ export function renderMessage(
     role,
     role_line: role ? `\nYour assigned role is *${role}*.\n` : "",
     event_name: event.name,
-    event_date: event.date,
+    event_date: formatDisplayDate(event.date),
     event_time: event.time,
     event_venue: event.venue,
     briefing_link: event.briefingLink ?? "",
-    // For a one-shift message, this is the matching day's group. For a volunteer
-    // spanning multiple days, return the relevant day links instead of guessing.
     whatsapp_group_link: groupLinksForVolunteer,
     whatsapp_group_links: formatWhatsAppGroupLinks(event, volunteerShiftDates),
     shift_summary: shiftSummary,
-    // Legacy aliases are fixed to event-level fields. They never inherit shift data.
-    date: event.date,
+    // Legacy aliases remain event-level fields, but are formatted for people.
+    date: formatDisplayDate(event.date),
     time: event.time,
     venue: event.venue,
     shift_name: shift?.name ?? "",
-    shift_date: shift?.date ?? "",
+    shift_date: shift ? formatDisplayDate(shift.date) : "",
     shift_start: shift?.startTime ?? "",
     shift_end: shift?.endTime ?? "",
     reporting_time: shift?.reportingTime ?? "",
