@@ -14,7 +14,6 @@ export const SHIFT_VARIABLES = [
   "shift_date",
   "shift_start",
   "shift_end",
-  "reporting_time",
   "shift_venue",
   "shift_notes",
   "shift_whatsapp_group_link",
@@ -38,6 +37,9 @@ export const EVENT_VARIABLES = [
   "poc_contact",
   "poc_contacts",
   "poc_line",
+  "reporting_time",
+  "reporting_times",
+  "reporting_time_line",
   "date",
   "time",
   "venue",
@@ -49,6 +51,7 @@ export const DEFAULT_TEMPLATE = `Hi {{first_name}}, thank you for volunteering f
 
 📅 {{event_date}}
 ⏰ Event time: {{event_time}}
+{{reporting_time_line}}
 📍 {{event_venue}}
 Please reply to this message if you have any questions.`;
 
@@ -170,6 +173,38 @@ function contextualPocValues(shifts: ShiftRecord[], explicitShift?: ShiftRecord)
   };
 }
 
+function contextualReportingTimeValues(shifts: ShiftRecord[], explicitShift?: ShiftRecord) {
+  const relevant = (explicitShift ? [explicitShift] : shifts)
+    .filter((shift) => Boolean(shift.reportingTime));
+
+  if (!relevant.length) {
+    return {
+      reporting_time: "",
+      reporting_times: "",
+      reporting_time_line: "",
+    };
+  }
+
+  if (relevant.length === 1) {
+    const value = relevant[0].reportingTime;
+    return {
+      reporting_time: value,
+      reporting_times: value,
+      reporting_time_line: `⏰ Reporting time: ${value}`,
+    };
+  }
+
+  const labelled = relevant
+    .map((shift) => `${shift.name} (${formatDisplayDate(shift.date)}): ${shift.reportingTime}`)
+    .join("\n");
+
+  return {
+    reporting_time: labelled,
+    reporting_times: labelled,
+    reporting_time_line: `⏰ Reporting times:\n${labelled}`,
+  };
+}
+
 function formatShiftSummary(
   volunteerId: string,
   shifts: ShiftRecord[],
@@ -187,7 +222,7 @@ function formatShiftSummary(
       const lines = [
         `${index + 1}. ${shift.name}`,
         `📅 ${formatDisplayDate(shift.date)}`,
-        `⏰ Report: ${shift.reportingTime}`,
+        `⏰ Reporting time: ${shift.reportingTime}`,
         `🕘 ${shift.startTime}${shift.endTime ? `–${shift.endTime}` : ""}`,
         `📍 ${shift.venue}`,
       ];
@@ -263,6 +298,7 @@ export function renderMessage(
   const eventStartDate = formatDisplayDate(event.date);
   const eventEndDate = event.endDate ? formatDisplayDate(event.endDate) : eventStartDate;
   const contextualPocs = contextualPocValues(relevantShifts, shift);
+  const contextualReportingTimes = contextualReportingTimeValues(relevantShifts, shift);
 
   const values: Record<string, string> = {
     ...personalValues(volunteer.name, volunteer.phone, volunteer.fields),
@@ -286,7 +322,7 @@ export function renderMessage(
     shift_date: shift ? formatDisplayDate(shift.date) : "",
     shift_start: shift?.startTime ?? "",
     shift_end: shift?.endTime ?? "",
-    reporting_time: shift?.reportingTime ?? "",
+    ...contextualReportingTimes,
     shift_venue: shift?.venue ?? "",
     shift_notes: shift?.notes ?? "",
     shift_whatsapp_group_link: shift ? whatsappGroupLinkForDate(event, shift.date) : "",
