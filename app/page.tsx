@@ -114,6 +114,13 @@ export default function Home() {
     setNewAssignment({ shiftId: "", role: "" });
     setEditingShiftId("");
     setEditingVolunteerId("");
+
+    // Campaign editor state is event-scoped. Reset it whenever the event changes
+    // so an unsaved draft from one event can never appear under another event.
+    setCampaignName("Event details");
+    setTemplate(DEFAULT_TEMPLATE);
+    setAudienceType("event");
+    setCampaignShiftId("");
   }, [selectedEventId]);
 
   useEffect(() => {
@@ -122,7 +129,7 @@ export default function Home() {
     setTemplate(selectedCampaign.template);
     setAudienceType(selectedCampaign.audienceType || "event");
     setCampaignShiftId(selectedCampaign.shiftId || "");
-  }, [selectedCampaign?.id]);
+  }, [selectedCampaign?.id, selectedCampaign?.updatedAt]);
 
   function assignmentsFor(volunteerId: string) {
     return assignmentsForVolunteer(eventAssignments, volunteerId, eventShifts);
