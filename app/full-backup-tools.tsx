@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useRef, useState } from "react";
 import { db } from "@/lib/db";
 import type { BackupPayload, LegacyBackupPayload } from "@/lib/types";
 
@@ -18,7 +17,6 @@ type FullBackupPayload = {
 };
 
 type RestoreResult = {
-  eventId?: string;
   kind: "full" | "legacy";
 };
 
@@ -123,12 +121,7 @@ async function restoreFullBackup(payload: FullBackupPayload): Promise<RestoreRes
     }
   });
 
-  const events = payload.stores.events;
-  const eventId = Array.isArray(events) && events[0] && typeof events[0] === "object"
-    ? String((events[0] as { id?: unknown }).id ?? "")
-    : undefined;
-
-  return { eventId: eventId || undefined, kind: "full" };
+  return { kind: "full" };
 }
 
 function upgradeLegacyBackup(raw: BackupPayload | LegacyBackupPayload): BackupPayload {
@@ -193,48 +186,13 @@ async function restoreLegacyBackup(raw: unknown): Promise<RestoreResult> {
     if (payload.sendRecords.length) await db.sendRecords.bulkAdd(payload.sendRecords);
   });
 
-  return { eventId: payload.events[0]?.id, kind: "legacy" };
+  return { kind: "legacy" };
 }
 
 export default function FullBackupTools() {
-  const [host, setHost] = useState<HTMLElement | null>(null);
   const [status, setStatus] = useState("");
   const [working, setWorking] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const sync = () => {
-      const panel = document.querySelector<HTMLElement>(".backup-panel");
-      if (!panel) {
-        setHost(null);
-        return;
-      }
-
-      panel.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => {
-        if (!child.classList.contains("full-backup-host")) child.style.display = "none";
-      });
-
-      let nextHost = panel.querySelector<HTMLElement>(":scope > .full-backup-host");
-      if (!nextHost) {
-        nextHost = document.createElement("div");
-        nextHost.className = "full-backup-host";
-        panel.appendChild(nextHost);
-      }
-      setHost((current) => current === nextHost ? current : nextHost);
-    };
-
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      document.querySelectorAll<HTMLElement>(".backup-panel > *").forEach((child) => {
-        child.style.display = "";
-      });
-      document.querySelectorAll(".full-backup-host").forEach((item) => item.remove());
-    };
-  }, []);
 
   async function exportBackup() {
     setWorking(true);
@@ -245,7 +203,7 @@ export default function FullBackupTools() {
       const stamp = new Date().toISOString().slice(0, 10);
       downloadBlob(blob, `volunteer-message-tool-${stamp}.vmtbackup`);
       const kb = Math.max(1, Math.round(blob.size / 1024));
-      setStatus(`Backup downloaded (${kb} KB). Keep this file somewhere safe.`);
+      setStatus(`Backup downloaded (${kb} KB).`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Backup export failed.");
     } finally {
@@ -264,8 +222,8 @@ export default function FullBackupTools() {
         : await restoreLegacyBackup(raw);
 
       setStatus(result.kind === "full"
-        ? "Full backup restored. Reloading the message tool..."
-        : "Legacy backup restored. Reloading the message tool...");
+        ? "Full backup restored. Reloading..."
+        : "Legacy backup restored. Reloading...");
       window.setTimeout(() => window.location.reload(), 150);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Backup restore failed.");
@@ -275,41 +233,43 @@ export default function FullBackupTools() {
     }
   }
 
-  if (!host) return null;
+  return (
+    <div className="floating-backup-tools">
+      <button
+        className="floating-menu-action"
+        type="button"
+        disabled={working}
+        onClick={() => void exportBackup()}
+      >
+        <span className="floating-menu-action-icon" aria-hidden="true">↓</span>
+        <span>
+          <strong>{working ? "Working..." : "Download backup"}</strong>
+          <small>Save all local tool data</small>
+        </span>
+      </button>
 
-  return createPortal(
-    <div className="stack">
-      <div>
-        <h2 style={{ marginBottom: 4 }}>Full local backup</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Downloads one compact backup containing events, shifts, volunteers, assignments, POCs,
-          event and general messages, send history, saved message templates, and local settings.
-        </p>
-      </div>
+      <input
+        ref={fileRef}
+        className="file-input"
+        type="file"
+        accept=".vmtbackup,.json,application/json,application/gzip"
+        onChange={(event) => void restoreBackup(event.currentTarget.files?.[0])}
+      />
 
-      <div className="actions">
-        <button className="primary" type="button" disabled={working} onClick={() => void exportBackup()}>
-          {working ? "Working..." : "Download full backup"}
-        </button>
-        <input
-          ref={fileRef}
-          className="file-input"
-          type="file"
-          accept=".vmtbackup,.json,application/json,application/gzip"
-          onChange={(event) => void restoreBackup(event.currentTarget.files?.[0])}
-        />
-        <button className="secondary" type="button" disabled={working} onClick={() => fileRef.current?.click()}>
-          Restore backup
-        </button>
-      </div>
+      <button
+        className="floating-menu-action"
+        type="button"
+        disabled={working}
+        onClick={() => fileRef.current?.click()}
+      >
+        <span className="floating-menu-action-icon" aria-hidden="true">↑</span>
+        <span>
+          <strong>Restore backup</strong>
+          <small>Replace local data from file</small>
+        </span>
+      </button>
 
-      <div className="warning">
-        <strong>Restoring replaces all local tool data on this browser.</strong>{" "}
-        Older version 1 and version 2 JSON backups are still supported. The new .vmtbackup format is compressed when supported by the browser.
-      </div>
-
-      {status && <p className="muted" role="status" style={{ margin: 0 }}>{status}</p>}
-    </div>,
-    host,
+      {status && <p className="floating-menu-status" role="status">{status}</p>}
+    </div>
   );
 }
