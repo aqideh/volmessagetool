@@ -174,7 +174,7 @@ function upgradeLegacyBackup(raw: BackupPayload | LegacyBackupPayload): BackupPa
 
 async function restoreLegacyBackup(raw: unknown): Promise<RestoreResult> {
   if (!raw || typeof raw !== "object") throw new Error("Unsupported backup file.");
-  const candidate = raw as Partial<BackupPayload & LegacyBackupPayload>;
+  const candidate = raw as { version?: unknown; events?: unknown; volunteers?: unknown };
   if ((candidate.version !== 1 && candidate.version !== 2)
     || !Array.isArray(candidate.events)
     || !Array.isArray(candidate.volunteers)) {
